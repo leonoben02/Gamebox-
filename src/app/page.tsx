@@ -1,69 +1,139 @@
-import Image from "next/image";
+import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
+import { browseGames, friendsRecentLogs, popularLists, popularMembers, popularReviews, trendingGames } from "@/lib/queries";
+import { GameCover } from "@/components/GameCover";
+import { ReviewCard } from "@/components/ReviewCard";
+import { ListCard } from "@/components/ListCard";
+import { Avatar } from "@/components/Avatar";
+import { Heart, Stars } from "@/components/Stars";
 
-export default function Home() {
+export default async function Home() {
+  const user = await getCurrentUser();
+  let trending = trendingGames(30, 12);
+  if (trending.length < 6) trending = browseGames({ sort: "popular", limit: 12 });
+  const reviews = popularReviews(user?.id ?? 0, 365, 6);
+  const lists = popularLists(3);
+  const members = popularMembers(5);
+  const friends = user ? friendsRecentLogs(user.id, 6) : [];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <div className="space-y-14">
+      {user ? (
+        <section className="pt-2 text-center">
+          <h1 className="font-display text-3xl font-bold">
+            Willkommen zurück, <span className="text-lime">{user.display_name}</span>.
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+          <p className="mt-2 text-muted">Hier ist, was deine Freunde gerade spielen.</p>
+        </section>
+      ) : (
+        <section className="relative overflow-hidden rounded-2xl border border-line bg-bg-2 px-6 py-14 text-center">
+          <div className="pointer-events-none absolute inset-0 flex justify-center gap-3 opacity-25 [mask-image:linear-gradient(to_bottom,black,transparent)]">
+            {trending.slice(0, 8).map((g) => (
+              <GameCover key={g.id} game={g} size="lg" link={false} className="-mt-6 rotate-[-4deg]" />
+            ))}
+          </div>
+          <div className="relative">
+            <h1 className="mx-auto max-w-2xl font-display text-4xl font-bold leading-tight sm:text-5xl">
+              Logge, was du spielst.
+              <br />
+              Speichere, was du spielen willst.
+              <br />
+              <span className="text-lime">Sag allen, was gut ist.</span>
+            </h1>
+            <Link href="/signup" className="btn-primary mt-8 !px-6 !py-3 !text-base">
+              Leg los – kostenlos
+            </Link>
+            <p className="mt-4 text-sm text-muted">Das soziale Netzwerk für Spieler·innen.</p>
+          </div>
+        </section>
+      )}
+
+      {friends.length > 0 && (
+        <section>
+          <h2 className="section-title">
+            Neu von Freunden <Link href="/activity">Alle Aktivitäten</Link>
+          </h2>
+          <div className="grid grid-cols-3 gap-4 sm:grid-cols-6">
+            {friends.map((l) => (
+              <div key={l.id}>
+                <GameCover game={l.game} size="fluid" />
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                  <Avatar user={l.user} size={18} />
+                  <Stars rating={l.rating} />
+                  {l.liked ? <Heart className="!h-3 !w-3" /> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section>
+        <h2 className="section-title">
+          Gerade beliebt <Link href="/games">Mehr</Link>
+        </h2>
+        <div className="grid grid-cols-3 gap-4 sm:grid-cols-6">
+          {trending.slice(0, 6).map((g) => (
+            <GameCover key={g.id} game={g} size="fluid" />
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </section>
+
+      {!user && (
+        <section className="grid gap-4 sm:grid-cols-3">
+          {[
+            ["Loggen", "Führe ein Tagebuch über jedes Spiel, das du spielst – mit Datum, Plattform, Spielzeit und Status."],
+            ["Bewerten & Reviewen", "Vergib bis zu fünf Sterne in halben Schritten und schreib auf, was dir gefallen hat."],
+            ["Backlog & Listen", "Merk dir, was du noch spielen willst, und stell Listen für jeden Anlass zusammen."],
+          ].map(([t, d]) => (
+            <div key={t} className="rounded-xl bg-surface p-5">
+              <h3 className="font-display text-lg font-bold text-lime">{t}</h3>
+              <p className="mt-1 text-sm text-muted">{d}</p>
+            </div>
+          ))}
+        </section>
+      )}
+
+      <div className="grid gap-10 md:grid-cols-[1fr_280px]">
+        <section>
+          <h2 className="section-title">Beliebte Reviews</h2>
+          {reviews.map((r) => (
+            <ReviewCard key={r.id} r={r} loggedIn={Boolean(user)} />
+          ))}
+        </section>
+        <aside className="space-y-10">
+          <section>
+            <h2 className="section-title">
+              Beliebte Listen <Link href="/lists">Mehr</Link>
+            </h2>
+            <div className="space-y-6">
+              {lists.map((l) => (
+                <ListCard key={l.id} list={l} />
+              ))}
+            </div>
+          </section>
+          <section>
+            <h2 className="section-title">
+              Mitglieder <Link href="/members">Mehr</Link>
+            </h2>
+            <ul className="space-y-3">
+              {members.map((m) => (
+                <li key={m.id} className="flex items-center gap-3">
+                  <Avatar user={m} size={36} />
+                  <div className="text-sm">
+                    <Link href={`/u/${m.username}`} className="font-semibold hover:text-lime">
+                      {m.display_name}
+                    </Link>
+                    <p className="text-xs text-muted">
+                      {m.played} Spiele · {m.reviews} Reviews
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

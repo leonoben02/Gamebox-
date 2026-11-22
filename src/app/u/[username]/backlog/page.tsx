@@ -1,0 +1,17 @@
+import { notFound } from "next/navigation";
+import { getUserByUsername, userGames } from "@/lib/queries";
+import { GameGrid } from "@/components/GameGrid";
+
+export default async function BacklogPage({ params }: PageProps<"/u/[username]/backlog">) {
+  const profile = getUserByUsername((await params).username);
+  if (!profile) notFound();
+  const games = userGames(profile.id, "backlog", "recent");
+  return (
+    <div>
+      <p className="mb-4 text-sm text-muted">
+        {profile.display_name} will {games.length} {games.length === 1 ? "Spiel" : "Spiele"} spielen.
+      </p>
+      <GameGrid games={games} empty="Der Backlog ist leer." />
+    </div>
+  );
+}

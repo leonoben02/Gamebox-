@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gamebox
 
-## Getting Started
+Ein soziales Spiele-Tagebuch: Spiele loggen, mit halben Sternen bewerten, Reviews schreiben, Backlog führen, Listen kuratieren, Freunden folgen.
 
-First, run the development server:
+## Funktionen
+
+- **Spielseiten** mit Bewertungsverteilung, beliebten Reviews, Reviews von Freunden, Listen, in denen das Spiel vorkommt
+- **Schnellaktionen**: Gespielt, Like, Backlog, Sterne (½-Schritte)
+- **Loggen**: Datum (Tagebuch), Status (Gespielt / Durchgespielt / 100 % / Abgebrochen), Plattform, Spielzeit, Review, Spoiler-Markierung, „erneut gespielt"
+- **Profil** mit 4 Lieblingsspielen, Statistik, Tagebuch nach Monaten, Reviews, Backlog, Listen, Likes, Folgt/Follower
+- **Listen** (optional als Rangliste) mit Likes
+- **Reviews** mit Likes und Kommentaren
+- **Aktivitäts-Feed** der Leute, denen du folgst
+- **Suche** nach Spielen und Mitgliedern; mit IGDB-Zugang wird jedes Spiel inkl. Cover gefunden
+
+## Lokal starten
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # optional: IGDB-Zugangsdaten eintragen
+npm run dev                   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Die SQLite-Datenbank wird beim ersten Start unter `data/gamebox.db` angelegt und mit ~50 Spielen sowie vier Demo-Mitgliedern befüllt (Passwort `gamebox-demo`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Spieledaten (IGDB)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Auf https://dev.twitch.tv/console eine Anwendung registrieren (kostenlos, braucht einen Twitch-Account mit 2FA).
+2. Client-ID und Client-Secret als `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` setzen.
 
-## Learn More
+Danach importiert die Suche Treffer von IGDB in die lokale Datenbank, und bereits vorhandene Spiele bekommen beim ersten Aufruf ihr Cover.
 
-To learn more about Next.js, take a look at the following resources:
+## Technik
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Next.js 16 (App Router, Server Actions) · React 19 · Tailwind CSS 4 · SQLite über better-sqlite3 · eigene Session-Auth (bcrypt + HttpOnly-Cookie).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Hosting: Da SQLite eine Datei auf der Platte ist, braucht der Server einen persistenten Speicher (z. B. Railway, Fly.io, Render mit Disk oder ein eigener VPS). Für Vercel müsste die Datenbank auf Postgres/Turso umgestellt werden.

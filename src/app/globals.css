@@ -1,26 +1,58 @@
 @import "tailwindcss";
 
+/* Gamebox palette: deep ink background, lime "XP" accent, coral hearts, cyan backlog */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #13111c;
+  --bg-2: #1b1828;
+  --surface: #221e33;
+  --line: #2f2a45;
+  --text: #ece9f6;
+  --muted: #9b95b5;
+  --faint: #6c6688;
+  --lime: #b9f23c;
+  --coral: #ff6b5e;
+  --cyan: #3fd2e3;
+  --violet: #8f7bff;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-lime: var(--lime);
+  --color-coral: var(--coral);
+  --color-cyan: var(--cyan);
+  --color-violet: var(--violet);
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html { color-scheme: dark; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
 }
+
+.font-display { font-family: var(--font-display); letter-spacing: -0.01em; }
+
+.section-title {
+  @apply flex items-baseline justify-between border-b border-line pb-1.5 mb-4 text-xs font-semibold uppercase tracking-[0.12em] text-muted;
+}
+.section-title a { @apply normal-case tracking-normal text-faint hover:text-lime; }
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors disabled:opacity-50;
+}
+@utility btn-primary { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors disabled:opacity-50 bg-lime text-[#151320] hover:brightness-110; }
+@utility btn-ghost { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors disabled:opacity-50 bg-surface text-text hover:bg-line; }
+@utility field {
+  @apply w-full rounded-md border border-line bg-bg-2 px-3 py-2 text-sm text-text placeholder:text-faint outline-none focus:border-lime;
+}
+@utility field-label { @apply mb-1 block text-xs font-semibold uppercase tracking-wider text-muted; }
+@utility tab { @apply px-1 pb-2 text-sm text-muted hover:text-text border-b-2 border-transparent; }
+@utility tab-active { @apply text-text border-lime; }
+.prose-review p + p { margin-top: 0.75em; }
