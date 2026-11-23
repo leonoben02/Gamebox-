@@ -79,13 +79,13 @@ async function upsert(games: IgdbGame[]): Promise<number[]> {
   const stmts: { sql: string; args: (string | number | null)[] }[] = [];
   for (const { g, slug, year, cover_url } of rows) {
     if (byIgdb.has(g.id)) {
-      stmts.push({ sql: "UPDATE games SET cover_url = COALESCE(?, cover_url) WHERE igdb_id = ?", args: [cover_url, g.id] });
+      stmts.push({ sql: "UPDATE games SET cover_url = COALESCE(?, cover_url), popularity = MAX(popularity, ?) WHERE igdb_id = ?", args: [cover_url, g.total_rating_count ?? 0, g.id] });
       continue;
     }
     const same = bySlug.get(slug);
     if (same && same.igdb_id === null) {
       // a seeded game with the same title gets linked to IGDB instead of duplicated
-      stmts.push({ sql: "UPDATE games SET igdb_id = ?, cover_url = COALESCE(cover_url, ?) WHERE id = ? AND igdb_id IS NULL", args: [g.id, cover_url, same.id] });
+      stmts.push({ sql: "UPDATE games SET igdb_id = ?, cover_url = COALESCE(cover_url, ?), popularity = ? WHERE id = ? AND igdb_id IS NULL", args: [g.id, cover_url, g.total_rating_count ?? 0, same.id] });
       byIgdb.add(g.id);
       continue;
     }
@@ -95,8 +95,8 @@ async function upsert(games: IgdbGame[]): Promise<number[]> {
     taken.add(unique);
     byIgdb.add(g.id);
     stmts.push({
-      sql: `INSERT OR IGNORE INTO games (slug, title, year, developer, genres, platforms, summary, cover_url, igdb_id, source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'igdb')`,
+      sql: `INSERT OR IGNORE INTO games (slug, title, year, developer, genres, platforms, summary, cover_url, igdb_id, popularity, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'igdb')`,
       args: [
         unique,
         g.name,
@@ -107,6 +107,7 @@ async function upsert(games: IgdbGame[]): Promise<number[]> {
         g.summary ?? "",
         cover_url,
         g.id,
+        g.total_rating_count ?? 0,
       ],
     });
   }
@@ -139,7 +140,26 @@ export async function enrichGame(id: number, title: string): Promise<void> {
     const g = games[0];
     if (!g?.cover) return;
     const cover = `https://images.igdb.com/igdb/image/upload/t_cover_big/${g.cover.image_id}.jpg`;
-    await db.prepare("UPDATE games SET igdb_id = ?, cover_url = ? WHERE id = ? AND igdb_id IS NULL").run(g.id, cover, id);
+    // The bulk import may already hold this IGDB game under its official title (e.g. "Baldur's Gate III").
+    // Drop that copy if nobody has used it yet; otherwise just borrow the cover.
+    const dup = (await db.prepare("SELECT id FROM games WHERE igdb_id = ? AND id <> ?").get(g.id, id)) as { id: number } | undefined;
+    if (dup) {
+      const used = await db
+        .prepare(
+          `SELECT 1 FROM user_games WHERE game_id = @d UNION ALL SELECT 1 FROM logs WHERE game_id = @d UNION ALL SELECT 1 FROM list_items WHERE game_id = @d
+           UNION ALL SELECT 1 FROM favorites WHERE game_id = @d UNION ALL SELECT 1 FROM activity WHERE game_id = @d LIMIT 1`,
+        )
+        .get({ d: dup.id });
+      if (used) {
+        await db.prepare("UPDATE games SET cover_url = ? WHERE id = ?").run(cover, id);
+        return;
+      }
+      await db.batch([
+        { sql: "DELETE FROM game_companies WHERE game_id = ?", args: [dup.id] },
+        { sql: "DELETE FROM games WHERE id = ?", args: [dup.id] },
+      ]);
+    }
+    await db.prepare("UPDATE games SET igdb_id = ?, cover_url = ?, popularity = ? WHERE id = ? AND igdb_id IS NULL").run(g.id, cover, g.total_rating_count ?? 0, id);
   } catch (e) {
     console.error("IGDB enrich failed", e);
   }
@@ -347,10 +367,31 @@ export async function syncCatalogue(budgetMs: number): Promise<void> {
       await new Promise((r) => setTimeout(r, Math.max(0, 1100 - (Date.now() - started))));
     }
   };
+  // hand-picked games first, so the bulk import links to them instead of adding a second copy
   const noCover = (await db.prepare("SELECT id, title FROM games WHERE source = 'seed' AND cover_url IS NULL").all()) as { id: number; title: string }[];
   await inGroups(noCover, (g) => enrichGame(g.id, g.title));
+  await importPopular(until);
+  // details for the 100 best-known games; the rest get theirs when someone opens their page
   const noDetails = (await db
-    .prepare("SELECT id FROM games WHERE source = 'seed' AND igdb_id IS NOT NULL AND details_synced_at IS NULL")
+    .prepare("SELECT id FROM games WHERE source = 'seed' AND igdb_id IS NOT NULL AND details_synced_at IS NULL ORDER BY popularity DESC LIMIT 100")
     .all()) as { id: number }[];
   await inGroups(noDetails, (g) => syncGameDetails(g.id));
+}
+
+export const CATALOGUE_TARGET = 2000;
+
+/**
+ * Imports the best-known games from IGDB (by number of ratings) into the browsable catalogue,
+ * 500 per request. Resumes where it left off: the offset is the number of already imported ones.
+ */
+async function importPopular(until: number): Promise<void> {
+  const { n } = (await db.prepare("SELECT COUNT(*) AS n FROM games WHERE popularity > 0 AND source = 'seed'").get()) as { n: number };
+  for (let offset = Math.max(0, Number(n) - 100); offset < CATALOGUE_TARGET && Date.now() < until; offset += 500) {
+    const games = await query(
+      `${FIELDS} where version_parent = null & game_type = (0,8,9,10) & cover != null & total_rating_count > 0; sort total_rating_count desc; limit 500; offset ${offset};`,
+    );
+    if (!games.length) break;
+    const ids = (await upsert(games)).filter(Boolean);
+    if (ids.length) await db.prepare(`UPDATE games SET source = 'seed' WHERE id IN (${ids.join(",")})`).run();
+  }
 }

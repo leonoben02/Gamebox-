@@ -201,6 +201,7 @@ async function open(): Promise<Client> {
     ["franchise", "TEXT NOT NULL DEFAULT ''"],
     ["releases", "TEXT NOT NULL DEFAULT '[]'"], // JSON [{platform, date, human}]
     ["details_synced_at", "TEXT"],
+    ["popularity", "INTEGER NOT NULL DEFAULT 0"], // IGDB total_rating_count, for sorting unplayed games
   ];
   for (const [name, type] of add) if (!cols.has(name)) await client.execute(`ALTER TABLE games ADD COLUMN ${name} ${type}`);
   const ugCols = new Set((await client.execute("PRAGMA table_info(user_games)")).rows.map((c) => String(c.name)));

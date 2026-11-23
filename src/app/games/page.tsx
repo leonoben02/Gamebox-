@@ -21,11 +21,14 @@ export default async function GamesPage({ searchParams }: PageProps<"/games">) {
   const sort = (SORTS.find(([k]) => k === sp.sort)?.[0] ?? "popular") as BrowseSort;
   const genre = typeof sp.genre === "string" ? sp.genre : undefined;
   const platform = FAMILIES.find((f) => f.key === sp.platform && f.key !== "other")?.key as Family | undefined;
-  const games = await browseGames({ sort, genre, platform });
+  const shown = Math.min(Math.max(Number(sp.n) || 96, 96), 960);
+  const games = await browseGames({ sort, genre, platform, limit: shown + 1 });
+  const more = games.length > shown;
+  if (more) games.pop();
   const genres = await allGenres();
   const qs = (p: Record<string, string | undefined>) => {
     const o = new URLSearchParams();
-    const merged = { sort, genre, platform, ...p };
+    const merged: Record<string, string | undefined> = { sort, genre, platform, ...p };
     for (const [k, v] of Object.entries(merged)) if (v) o.set(k, v);
     return `?${o}`;
   };
@@ -78,6 +81,13 @@ export default async function GamesPage({ searchParams }: PageProps<"/games">) {
           </div>
         ))}
       </div>
+      {more && (
+        <div className="mt-8 text-center">
+          <Link href={qs({ n: String(shown + 96) })} scroll={false} className="btn btn-ghost">
+            Mehr Spiele anzeigen
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

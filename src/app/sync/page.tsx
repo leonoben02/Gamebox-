@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
-import { igdbProblem, syncCatalogue } from "@/lib/igdb";
+import { CATALOGUE_TARGET, igdbProblem, syncCatalogue } from "@/lib/igdb";
 
 export const metadata: Metadata = { title: "Spieldaten laden", robots: { index: false } };
 // Vercel keeps the function alive this long; each visit continues where the last one stopped.
@@ -32,9 +32,9 @@ function Row({ label, n, total }: { label: string; n: number; total: number }) {
 
 export default async function SyncPage() {
   const problem = await igdbProblem();
-  if (!problem) await syncCatalogue(45_000);
+  if (!problem) await syncCatalogue(35_000);
   const c = await counts();
-  const done = !problem && Number(c.covers) === Number(c.total) && Number(c.details) === Number(c.total);
+  const done = !problem && Number(c.total) >= CATALOGUE_TARGET && Number(c.covers) === Number(c.total);
   return (
     <div className="mx-auto max-w-md">
       <h1 className="font-display text-3xl font-bold">Spieldaten laden</h1>
@@ -46,8 +46,11 @@ export default async function SyncPage() {
         <p className="mt-4 text-sm text-muted">Verbindung zu IGDB klappt. ✓</p>
       )}
       <ul className="mt-6 text-sm">
-        <Row label="Spiele mit Cover" n={Number(c.covers)} total={Number(c.total)} />
-        <Row label="Spiele mit Studios & Details" n={Number(c.details)} total={Number(c.total)} />
+        <Row label="Spiele im Katalog mit Cover" n={Number(c.covers)} total={Number(c.total)} />
+        <li className="flex justify-between border-b border-line py-3">
+          <span>Spiele mit Studios & Details</span>
+          <span>{c.details}</span>
+        </li>
         <li className="flex justify-between py-3">
           <span>Studios in der Datenbank</span>
           <span>{c.studios}</span>

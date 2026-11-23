@@ -76,10 +76,10 @@ export type BrowseSort = "popular" | "rating" | "newest" | "oldest" | "title";
 
 export async function browseGames(opts: { sort?: BrowseSort; genre?: string; platform?: Family; limit?: number }): Promise<(Game & { players: number; avg: number | null })[]> {
   const order = {
-    popular: "players DESC, g.title",
-    rating: "avg IS NULL, avg DESC, players DESC",
-    newest: "g.year DESC, g.title",
-    oldest: "g.year ASC, g.title",
+    popular: "players DESC, g.popularity DESC, g.title",
+    rating: "avg IS NULL, avg DESC, players DESC, g.popularity DESC",
+    newest: "g.year IS NULL, g.year DESC, g.popularity DESC",
+    oldest: "g.year IS NULL, g.year ASC, g.popularity DESC",
     title: "g.title COLLATE NOCASE",
   }[opts.sort ?? "popular"];
   const conds = [
@@ -112,7 +112,7 @@ export async function allGenres(): Promise<string[]> {
     .all() as { genres: string }[];
   const counts = new Map<string, number>();
   for (const r of rows) for (const g of r.genres.split(",").filter(Boolean)) counts.set(g, (counts.get(g) ?? 0) + 1);
-  return [...counts.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).map(([g]) => g);
+  return [...counts.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 30).map(([g]) => g);
 }
 
 /** Games with the most activity in the last `days` days. */
@@ -121,7 +121,7 @@ export async function trendingGames(days = 30, limit = 12): Promise<Game[]> {
     .prepare(
       `SELECT ${GAME_COLS}, COUNT(a.id) AS n FROM games g
        JOIN activity a ON a.game_id = g.id AND a.created_at > datetime('now', ?)
-       GROUP BY g.id ORDER BY n DESC, g.title LIMIT ?`,
+       GROUP BY g.id ORDER BY n DESC, g.popularity DESC LIMIT ?`,
     )
     .all(`-${days} days`, limit) as Game[];
 }
@@ -536,7 +536,7 @@ export async function gamesByGenre(genre: string, limit = 12) {
   return (await db
     .prepare(
       `SELECT ${GAME_COLS} FROM games g WHERE (',' || g.genres || ',') LIKE ? AND (g.source = 'seed' OR EXISTS (SELECT 1 FROM user_games ug WHERE ug.game_id = g.id))
-       ORDER BY (SELECT COUNT(*) FROM user_games ug WHERE ug.game_id = g.id) DESC LIMIT ?`,
+       ORDER BY (SELECT COUNT(*) FROM user_games ug WHERE ug.game_id = g.id) DESC, g.popularity DESC LIMIT ?`,
     )
     .all(`%,${genre},%`, limit)) as Game[];
 }
@@ -545,7 +545,7 @@ export async function classicGames(before = 2006, limit = 12) {
   return (await db
     .prepare(
       `SELECT ${GAME_COLS} FROM games g WHERE g.year < ? AND (g.source = 'seed' OR EXISTS (SELECT 1 FROM user_games ug WHERE ug.game_id = g.id))
-       ORDER BY (SELECT AVG(rating) FROM user_games ug WHERE ug.game_id = g.id) DESC LIMIT ?`,
+       ORDER BY (SELECT AVG(rating) FROM user_games ug WHERE ug.game_id = g.id) DESC, g.popularity DESC LIMIT ?`,
     )
     .all(before, limit)) as Game[];
 }
