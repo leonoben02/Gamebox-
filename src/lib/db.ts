@@ -157,14 +157,19 @@ type Executor = Pick<Client, "execute"> | Transaction;
 
 export type RunResult = { changes: number; lastInsertRowid: number };
 
-function toArgs(args: Args): InArgs {
+function toArgs(sql: string, args: Args): InArgs {
   // a single plain object = named parameters (@name), otherwise positional (?)
-  if (args.length === 1 && args[0] !== null && typeof args[0] === "object" && !Array.isArray(args[0])) return args[0] as InArgs;
+  if (args.length === 1 && args[0] !== null && typeof args[0] === "object" && !Array.isArray(args[0])) {
+    // Turso (remote libSQL) rejects named values the statement doesn't use; local SQLite ignores them.
+    // Drop unused keys so both behave the same.
+    const used = new Set([...sql.matchAll(/[@:$]([A-Za-z_]\w*)/g)].map((m) => m[1]));
+    return Object.fromEntries(Object.entries(args[0] as Record<string, unknown>).filter(([k]) => used.has(k))) as InArgs;
+  }
   return args as InArgs;
 }
 
 function statement(exec: () => Promise<Executor>, sql: string) {
-  const run = async (args: Args) => (await exec()).execute({ sql, args: toArgs(args) });
+  const run = async (args: Args) => (await exec()).execute({ sql, args: toArgs(sql, args) });
   const plain = (r: Awaited<ReturnType<typeof run>>) =>
     r.rows.map((row) => Object.fromEntries(r.columns.map((c, i) => [c, row[i]])));
   return {

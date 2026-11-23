@@ -8,6 +8,7 @@ export function ProfileTabs({ username }: { username: string }) {
   const base = `/u/${username}`;
   const tabs = [
     ["Profil", base],
+    ["Spielt gerade", `${base}/playing`],
     ["Spiele", `${base}/games`],
     ["Tagebuch", `${base}/diary`],
     ["Reviews", `${base}/reviews`],

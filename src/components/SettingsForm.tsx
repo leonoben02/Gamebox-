@@ -36,8 +36,9 @@ export function SettingsForm({
         <label className="field-label">Bio</label>
         <textarea name="bio" rows={3} defaultValue={user.bio} className="field" />
       </div>
-      <div>
-        <label className="field-label">Lieblingsspiele</label>
+      <div id="favoriten" className="scroll-mt-24">
+        <label className="field-label">Lieblingsspiele (Top 4 im Profil)</label>
+        <p className="mb-2 text-xs text-faint">Tippe auf ein Feld und suche ein Spiel. Danach unten „Speichern“.</p>
         <div className="grid grid-cols-4 gap-3">
           {favs.map((g, i) => (
             <div key={i}>

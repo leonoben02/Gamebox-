@@ -56,3 +56,15 @@ body {
 @utility tab { @apply px-1 pb-2 text-sm text-muted hover:text-text border-b-2 border-transparent; }
 @utility tab-active { @apply text-text border-lime; }
 .prose-review p + p { margin-top: 0.75em; }
+
+/* Rating stars: the tapped star pops, the value label fades in */
+@keyframes star-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.35) rotate(-8deg); }
+  70% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+@keyframes star-label { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.star-pop { animation: star-pop 0.35s ease-out; }
+.star-label { animation: star-label 0.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .star-pop, .star-label { animation: none; } }

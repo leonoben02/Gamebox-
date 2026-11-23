@@ -119,7 +119,7 @@ export async function allGenres(): Promise<string[]> {
 /** Games with the most activity in the last `days` days. */
 /** What's hot right now according to IGDB (refreshed every 12 hours). */
 export async function hotGames(limit = 12): Promise<Game[]> {
-  return (await db.prepare(`SELECT ${GAME_COLS} FROM games g WHERE g.trending > 0 ORDER BY g.trending DESC LIMIT ?`).all(limit)) as Game[];
+  return (await db.prepare(`SELECT ${GAME_COLS} FROM games g WHERE g.trending > 0 AND g.year >= ? ORDER BY g.trending DESC LIMIT ?`).all(new Date().getFullYear() - 1, limit)) as Game[];
 }
 
 export async function trendingGames(days = 30, limit = 12): Promise<Game[]> {

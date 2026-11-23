@@ -41,23 +41,33 @@ async function ProfileContent({ params }: PageProps<"/u/[username]">) {
     <div className="grid gap-10 md:grid-cols-[1fr_250px]">
       <div className="min-w-0 space-y-12">
         <section>
-          <h2 className="section-title">Lieblingsspiele</h2>
-          {favs.length ? (
+          <div className="flex items-baseline justify-between">
+            <h2 className="section-title">Lieblingsspiele</h2>
+            {isMe && (
+              <Link href="/settings#favoriten" className="text-xs text-muted hover:text-lime">
+                Bearbeiten
+              </Link>
+            )}
+          </div>
+          {favs.length || isMe ? (
             <div className="grid grid-cols-4 gap-4">
               {favs.map((g) => (
                 <GameCover key={g.id} game={g} size="fluid" />
               ))}
+              {isMe &&
+                Array.from({ length: Math.max(0, 4 - favs.length) }, (_, i) => (
+                  <Link
+                    key={`empty-${i}`}
+                    href="/settings#favoriten"
+                    className="flex aspect-[3/4] flex-col items-center justify-center gap-1 rounded-md border border-dashed border-line text-center text-xs text-faint hover:border-lime hover:text-lime"
+                  >
+                    <span className="text-2xl leading-none">+</span>
+                    Top-Spiel
+                  </Link>
+                ))}
             </div>
           ) : (
-            <p className="text-sm text-muted">
-              {isMe ? (
-                <>
-                  Wähle deine vier Lieblingsspiele in den <Link href="/settings" className="text-lime">Einstellungen</Link>.
-                </>
-              ) : (
-                "Noch keine Lieblingsspiele gewählt."
-              )}
-            </p>
+            <p className="text-sm text-muted">Noch keine Lieblingsspiele gewählt.</p>
           )}
         </section>
         {playing.length > 0 && (
