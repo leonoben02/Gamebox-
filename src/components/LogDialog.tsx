@@ -117,7 +117,7 @@ export function LogDialog({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="field-label">Status</label>
-            <select name="status" defaultValue={defaults.status ?? "completed"} className="field">
+            <select name="status" defaultValue={defaults.status ?? "played"} className="field">
               {Object.entries(STATUS_LABELS).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}

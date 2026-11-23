@@ -214,6 +214,8 @@ async function open(): Promise<Client> {
   for (const [name, type] of add) if (!cols.has(name)) await client.execute(`ALTER TABLE games ADD COLUMN ${name} ${type}`);
   const ugCols = new Set((await client.execute("PRAGMA table_info(user_games)")).rows.map((c) => String(c.name)));
   if (!ugCols.has("playing")) await client.execute("ALTER TABLE user_games ADD COLUMN playing INTEGER NOT NULL DEFAULT 0");
+  // how far: played | completed (durchgespielt) | mastered (100 %) | abandoned
+  if (!ugCols.has("status")) await client.execute("ALTER TABLE user_games ADD COLUMN status TEXT NOT NULL DEFAULT 'played'");
   const userCols = new Set((await client.execute("PRAGMA table_info(users)")).rows.map((c) => String(c.name)));
   if (!userCols.has("google_sub")) await client.execute("ALTER TABLE users ADD COLUMN google_sub TEXT");
   if (!userCols.has("email")) await client.execute("ALTER TABLE users ADD COLUMN email TEXT");

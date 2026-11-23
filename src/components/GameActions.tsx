@@ -2,12 +2,20 @@
 
 import Link from "next/link";
 import { useOptimistic, useState, useTransition } from "react";
-import { setRating, toggleBacklog, toggleListItem, toggleLiked, togglePlayed, togglePlaying } from "@/app/actions";
+import { setPlayStatus, setRating, toggleBacklog, toggleListItem, toggleLiked, togglePlayed, togglePlaying } from "@/app/actions";
 import type { UserGame } from "@/lib/queries";
 import { LogDialog } from "./LogDialog";
 import { StarInput } from "./StarInput";
 
 type G = { id: number; title: string; year: number | null; platforms: string; slug: string };
+
+const STATUS_SHORT: Record<string, string> = { played: "Gespielt", completed: "Durchgespielt", mastered: "100 %", abandoned: "Abgebrochen" };
+const STATUS_CHIPS: [string, string, string][] = [
+  ["played", "Gespielt", "var(--lime)"],
+  ["completed", "🏆 Durchgespielt", "var(--lime)"],
+  ["mastered", "💯 100 %", "var(--cyan)"],
+  ["abandoned", "Abgebrochen", "var(--coral)"],
+];
 
 function ActionIcon({ on, color, label, onClick, children }: { on: boolean; color: string; label: string; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -59,8 +67,8 @@ export function GameActions({
         <ActionIcon
           on={Boolean(opt.played)}
           color="var(--lime)"
-          label="Gespielt"
-          onClick={() => run(opt.played ? { played: 0 } : { played: 1, backlog: 0 }, () => togglePlayed(game.id))}
+          label={opt.played ? (STATUS_SHORT[opt.status] ?? "Gespielt") : "Gespielt"}
+          onClick={() => run(opt.played ? { played: 0, status: "played" } : { played: 1, backlog: 0 }, () => togglePlayed(game.id))}
         >
           <svg viewBox="0 0 24 24" fill="currentColor">
             <path d="M7 7h10a5 5 0 0 1 4.9 6l-.9 4.2a2.4 2.4 0 0 1-4.1 1.1L14.6 16H9.4l-2.3 2.3A2.4 2.4 0 0 1 3 17.2L2.1 13A5 5 0 0 1 7 7zm1 3v1.5H6.5v1H8V14h1v-1.5h1.5v-1H9V10H8zm7.5.5a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm2 2a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8z" />
@@ -97,6 +105,28 @@ export function GameActions({
           </svg>
         </ActionIcon>
       </div>
+      {Boolean(opt.played) && (
+        <div className="border-t border-line px-3 py-3">
+          <p className="mb-2 text-center text-xs text-muted">Wie weit bist du gekommen?</p>
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {STATUS_CHIPS.map(([k, label, color]) => {
+              const on = (opt.status || "played") === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => run({ status: k, played: 1, ...(k !== "played" ? { playing: 0 } : {}) }, () => setPlayStatus(game.id, k))}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition active:scale-95 ${on ? "text-text" : "border-line text-muted hover:text-text"}`}
+                  style={on ? { borderColor: color, background: `color-mix(in srgb, ${color} 18%, transparent)` } : undefined}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="flex flex-col items-center border-t border-line py-3">
         <span className="mb-1 text-xs text-muted">{opt.rating ? "Bewertet" : "Bewerten"}</span>
         <StarInput
@@ -127,7 +157,7 @@ export function GameActions({
           </div>
         )}
       </div>
-      {logOpen && <LogDialog game={game} open={logOpen} onClose={() => setLogOpen(false)} defaults={{ rating: opt.rating, liked: opt.liked }} />}
+      {logOpen && <LogDialog game={game} open={logOpen} onClose={() => setLogOpen(false)} defaults={{ rating: opt.rating, liked: opt.liked, status: opt.played ? opt.status : undefined }} />}
     </div>
   );
 }

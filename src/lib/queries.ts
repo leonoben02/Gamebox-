@@ -165,13 +165,13 @@ export async function gameStats(gameId: number) {
 
 // ---------- user <-> game ----------
 
-export type UserGame = { played: number; liked: number; rating: number | null; backlog: number; playing: number };
+export type UserGame = { played: number; liked: number; rating: number | null; backlog: number; playing: number; status: string };
 
 export async function getUserGame(userId: number, gameId: number): Promise<UserGame> {
   return (
-    (await db.prepare("SELECT played, liked, rating, backlog, playing FROM user_games WHERE user_id = ? AND game_id = ?").get(userId, gameId) as
+    (await db.prepare("SELECT played, liked, rating, backlog, playing, status FROM user_games WHERE user_id = ? AND game_id = ?").get(userId, gameId) as
       | UserGame
-      | undefined) ?? { played: 0, liked: 0, rating: null, backlog: 0, playing: 0 }
+      | undefined) ?? { played: 0, liked: 0, rating: null, backlog: 0, playing: 0, status: "played" }
   );
 }
 
@@ -180,8 +180,8 @@ export async function userGames(userId: number, filter: "played" | "backlog" | "
   const where = { played: "ug.played = 1", backlog: "ug.backlog = 1", liked: "ug.liked = 1", playing: "ug.playing = 1" }[filter];
   const order = { recent: "ug.updated_at DESC", rating: "ug.rating IS NULL, ug.rating DESC", title: "g.title COLLATE NOCASE" }[sort];
   return await db
-    .prepare(`SELECT ${GAME_COLS}, ug.rating AS user_rating, ug.liked AS user_liked FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.user_id = ? AND ${where} ORDER BY ${order}`)
-    .all(userId) as (Game & { user_rating: number | null; user_liked: number })[];
+    .prepare(`SELECT ${GAME_COLS}, ug.rating AS user_rating, ug.liked AS user_liked, ug.status AS user_status FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.user_id = ? AND ${where} ORDER BY ${order}`)
+    .all(userId) as (Game & { user_rating: number | null; user_liked: number; user_status: string })[];
 }
 
 // ---------- logs / reviews ----------

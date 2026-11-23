@@ -47,7 +47,7 @@ export async function logout() {
 
 // ---------- game status (quick actions) ----------
 
-async function upsertUserGame(userId: number, gameId: number, patch: Partial<{ played: number; liked: number; rating: number | null; backlog: number; playing: number }>) {
+async function upsertUserGame(userId: number, gameId: number, patch: Partial<{ played: number; liked: number; rating: number | null; backlog: number; playing: number; status: string }>) {
   await db.prepare("INSERT INTO user_games (user_id, game_id) VALUES (?, ?) ON CONFLICT DO NOTHING").run(userId, gameId);
   const sets = Object.keys(patch).map((k) => `${k} = @${k}`);
   await db.prepare(`UPDATE user_games SET ${sets.join(", ")}, updated_at = datetime('now') WHERE user_id = @userId AND game_id = @gameId`).run({
@@ -73,7 +73,19 @@ export async function togglePlayed(gameId: number) {
   const cur = await db.prepare("SELECT played FROM user_games WHERE user_id = ? AND game_id = ?").get(u.id, gameId) as { played: number } | undefined;
   const played = cur?.played ? 0 : 1;
   // Marking played removes it from the backlog, like Letterboxd's watchlist.
-  await upsertUserGame(u.id, gameId, played ? { played, backlog: 0 } : { played });
+  await upsertUserGame(u.id, gameId, played ? { played, backlog: 0 } : { played, status: "played" });
+  await refreshGame(gameId);
+}
+
+const STATUSES = ["played", "completed", "mastered", "abandoned"];
+
+/** Gespielt / Durchgespielt / 100 % / Abgebrochen. Picking one also marks the game as played. */
+export async function setPlayStatus(gameId: number, status: string) {
+  const u = await requireUser();
+  if (!STATUSES.includes(status)) return;
+  // finishing or dropping a game means you're no longer playing it
+  const done = status !== "played" ? { playing: 0 } : {};
+  await upsertUserGame(u.id, gameId, { played: 1, backlog: 0, status, ...done });
   await refreshGame(gameId);
 }
 
@@ -159,9 +171,14 @@ export async function saveLog(_: FormState, f: FormData): Promise<FormState> {
     ).lastInsertRowid;
     await db.prepare("INSERT INTO activity (user_id, type, game_id, log_id) VALUES (?, ?, ?, ?)").run(u.id, data.review ? "review" : "log", gameId, id);
   }
+  // the newest log decides how far you got
+  const newest = (await db
+    .prepare("SELECT id FROM logs WHERE user_id = ? AND game_id = ? ORDER BY COALESCE(played_on, created_at) DESC, id DESC LIMIT 1")
+    .get(u.id, gameId)) as { id: number } | undefined;
   await upsertUserGame(u.id, gameId, {
     played: 1,
     backlog: 0,
+    ...(Number(newest?.id) === Number(id) ? { status: data.status } : {}),
     ...(data.rating ? { rating: data.rating } : {}),
     ...(data.liked ? { liked: 1 } : {}),
   });

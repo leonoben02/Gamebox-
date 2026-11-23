@@ -54,7 +54,7 @@ export default async function GamePage({ params }: PageProps<"/game/[slug]">) {
   const actions = (
     <GameActions
       game={game}
-      state={user ? await getUserGame(user.id, game.id) : { played: 0, liked: 0, rating: null, backlog: 0, playing: 0 }}
+      state={user ? await getUserGame(user.id, game.id) : { played: 0, liked: 0, rating: null, backlog: 0, playing: 0, status: "played" }}
       lists={user ? await myListsForGame(user.id, game.id) : []}
       loggedIn={Boolean(user)}
     />
