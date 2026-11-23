@@ -360,6 +360,7 @@ export async function igdbProblem(): Promise<string | null> {
  */
 export async function syncCatalogue(budgetMs: number): Promise<void> {
   const until = Date.now() + budgetMs;
+  await refreshTrending();
   const inGroups = async <T,>(items: T[], fn: (x: T) => Promise<void>) => {
     for (let i = 0; i < items.length && Date.now() < until; i += 4) {
       const started = Date.now();
@@ -393,5 +394,44 @@ async function importPopular(until: number): Promise<void> {
     if (!games.length) break;
     const ids = (await upsert(games)).filter(Boolean);
     if (ids.length) await db.prepare(`UPDATE games SET source = 'seed' WHERE id IN (${ids.join(",")})`).run();
+  }
+}
+
+// ---------- what's hot right now ----------
+
+/**
+ * Pulls IGDB's current "Visits" popularity (what people look at right now, so new releases rank high),
+ * imports those games and stores a rank score in games.trending. Runs at most every 12 hours.
+ */
+export async function refreshTrending(force = false): Promise<void> {
+  if (!igdbEnabled || process.env.NEXT_PHASE === "phase-production-build") return;
+  const last = (await db.prepare("SELECT value FROM meta WHERE key = 'trending_at'").get()) as { value: string } | undefined;
+  if (!force && last && Date.now() - Number(last.value) < 12 * 3600_000) return;
+  await db.prepare("INSERT INTO meta (key, value) VALUES ('trending_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(Date.now()));
+  try {
+    const prims = (await query("fields game_id,value; where popularity_type = 1; sort value desc; limit 500;", "popularity_primitives")) as unknown as {
+      game_id: number;
+    }[];
+    const ids = prims.map((p) => p.game_id);
+    if (!ids.length) return;
+    // Raw visit counts include spam and adult games, so only keep known or eagerly awaited main games
+    // and never anything with the "Erotic" theme (42).
+    const found = await query(
+      `${FIELDS} where id = (${ids.join(",")}) & version_parent = null & cover != null & game_type = (0,8,9,10) & themes != (42) & (total_rating_count >= 40 | hypes >= 40); limit 500;`,
+    );
+    const order = new Map(ids.map((id, i) => [id, i]));
+    const games = found.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)).slice(0, 200);
+    const stored = await upsert(games);
+    const rank = new Map(games.map((g, i) => [g.id, 200 - i]));
+    await db.batch([
+      { sql: "UPDATE games SET trending = 0 WHERE trending > 0", args: [] },
+      ...games
+        .map((g, i) => ({ id: stored[i], score: rank.get(g.id) ?? 0 }))
+        .filter((x) => x.id)
+        .map((x) => ({ sql: "UPDATE games SET trending = ?, source = 'seed' WHERE id = ?", args: [x.score, x.id] })),
+    ]);
+  } catch (e) {
+    console.error("IGDB trending failed", e);
+    await db.prepare("DELETE FROM meta WHERE key = 'trending_at'").run();
   }
 }

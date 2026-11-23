@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { after } from "next/server";
-import { syncMissingCovers } from "@/lib/igdb";
+import { refreshTrending, syncMissingCovers } from "@/lib/igdb";
 import { logout } from "@/app/actions";
 import { Avatar } from "./Avatar";
 import { LogButton } from "./LogButton";
@@ -10,7 +10,7 @@ import { MobileNav } from "./MobileNav";
 
 export async function Header() {
   const user = await getCurrentUser();
-  after(() => syncMissingCovers().catch((e) => console.error(e)));
+  after(() => Promise.all([syncMissingCovers(), refreshTrending()]).catch((e) => console.error(e)));
   return (
     <>
     <header className="sticky top-0 z-30 border-b border-line/70 bg-bg/85 backdrop-blur">

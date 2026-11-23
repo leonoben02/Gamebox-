@@ -11,7 +11,7 @@ import {
   popularLists,
   popularReviews,
   topRatedGames,
-  trendingGames,
+  hotGames,
 } from "@/lib/queries";
 import { GameCover } from "@/components/GameCover";
 import { ReviewCard } from "@/components/ReviewCard";
@@ -70,8 +70,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 }
 
 async function GamesTab({ userId }: { userId?: number }) {
-  let trending = await trendingGames(7, 12);
-  if (trending.length < 6) trending = await trendingGames(60, 12);
+  let trending = await hotGames(12);
   if (trending.length < 6) trending = await browseGames({ sort: "popular", limit: 12 });
   const friends = userId ? await friendsRecentLogs(userId, 12) : [];
   const playingNow = userId ? await friendsPlaying(userId, 12) : [];

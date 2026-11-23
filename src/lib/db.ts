@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_hue INTEGER NOT NULL DEFAULT 260,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -201,6 +202,7 @@ async function open(): Promise<Client> {
     ["franchise", "TEXT NOT NULL DEFAULT ''"],
     ["releases", "TEXT NOT NULL DEFAULT '[]'"], // JSON [{platform, date, human}]
     ["details_synced_at", "TEXT"],
+    ["trending", "INTEGER NOT NULL DEFAULT 0"], // rank score from IGDB's current page visits (higher = hotter right now)
     ["popularity", "INTEGER NOT NULL DEFAULT 0"], // IGDB total_rating_count, for sorting unplayed games
   ];
   for (const [name, type] of add) if (!cols.has(name)) await client.execute(`ALTER TABLE games ADD COLUMN ${name} ${type}`);

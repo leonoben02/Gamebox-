@@ -76,7 +76,8 @@ export type BrowseSort = "popular" | "rating" | "newest" | "oldest" | "title";
 
 export async function browseGames(opts: { sort?: BrowseSort; genre?: string; platform?: Family; limit?: number }): Promise<(Game & { players: number; avg: number | null })[]> {
   const order = {
-    popular: "players DESC, g.popularity DESC, g.title",
+    // until there are enough members, "what's hot on IGDB right now" leads; own players break ties
+    popular: "g.trending DESC, players DESC, g.popularity DESC",
     rating: "avg IS NULL, avg DESC, players DESC, g.popularity DESC",
     newest: "g.year IS NULL, g.year DESC, g.popularity DESC",
     oldest: "g.year IS NULL, g.year ASC, g.popularity DESC",
@@ -116,6 +117,11 @@ export async function allGenres(): Promise<string[]> {
 }
 
 /** Games with the most activity in the last `days` days. */
+/** What's hot right now according to IGDB (refreshed every 12 hours). */
+export async function hotGames(limit = 12): Promise<Game[]> {
+  return (await db.prepare(`SELECT ${GAME_COLS} FROM games g WHERE g.trending > 0 ORDER BY g.trending DESC LIMIT ?`).all(limit)) as Game[];
+}
+
 export async function trendingGames(days = 30, limit = 12): Promise<Game[]> {
   return await db
     .prepare(
