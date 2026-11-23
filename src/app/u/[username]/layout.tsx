@@ -17,9 +17,9 @@ export default async function ProfileLayout({ children, params }: LayoutProps<"/
   const base = `/u/${profile.username}`;
 
   const stat = (n: number, label: string, href: string) => (
-    <Link href={href} className="px-4 text-center first:pl-0 last:pr-0 hover:text-lime">
+    <Link href={href} className="min-w-0 flex-1 px-2 text-center first:pl-0 last:pr-0 hover:text-lime sm:flex-none sm:px-4">
       <div className="font-display text-2xl font-bold">{n}</div>
-      <div className="text-[11px] uppercase tracking-widest text-muted">{label}</div>
+      <div className="text-[10px] uppercase tracking-wider text-muted sm:text-[11px] sm:tracking-widest">{label}</div>
     </Link>
   );
 
@@ -41,7 +41,7 @@ export default async function ProfileLayout({ children, params }: LayoutProps<"/
           <p className="text-sm text-faint">@{profile.username}</p>
           {profile.bio && <p className="mt-2 max-w-xl text-sm text-muted">{profile.bio}</p>}
         </div>
-        <div className="flex divide-x divide-line">
+        <div className="flex w-full justify-between divide-x divide-line sm:w-auto sm:justify-start">
           {stat(stats.played, "Spiele", `${base}/games`)}
           {stat(stats.thisYear, "Dieses Jahr", `${base}/diary`)}
           {stat(stats.lists, "Listen", `${base}/lists`)}

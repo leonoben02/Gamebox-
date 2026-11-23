@@ -24,7 +24,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
 
   return (
     <div className="grid gap-10 md:grid-cols-[1fr_250px]">
-      <div className="space-y-12">
+      <div className="min-w-0 space-y-12">
         <section>
           <h2 className="section-title">Lieblingsspiele</h2>
           {favs.length ? (
@@ -77,7 +77,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
           </ul>
         </section>
       </div>
-      <aside className="space-y-10">
+      <aside className="min-w-0 space-y-10">
         <section>
           <h2 className="section-title">
             Backlog <Link href={`${base}/backlog`}>{stats.backlog}</Link>

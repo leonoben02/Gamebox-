@@ -95,13 +95,13 @@ export default async function Home() {
       )}
 
       <div className="grid gap-10 md:grid-cols-[1fr_280px]">
-        <section>
+        <section className="min-w-0">
           <h2 className="section-title">Beliebte Reviews</h2>
           {reviews.map((r) => (
             <ReviewCard key={r.id} r={r} loggedIn={Boolean(user)} />
           ))}
         </section>
-        <aside className="space-y-10">
+        <aside className="min-w-0 space-y-10">
           <section>
             <h2 className="section-title">
               Beliebte Listen <Link href="/lists">Mehr</Link>

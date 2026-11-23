@@ -69,7 +69,7 @@ export default async function GamePage({ params }: PageProps<"/game/[slug]">) {
           </div>
         </div>
 
-        <div className="order-3 pt-2 md:order-none md:pt-24">
+        <div className="order-3 min-w-0 pt-2 md:order-none md:pt-24">
           <h1 className="font-display text-4xl font-bold leading-tight">{game.title}</h1>
           <p className="mt-1 text-muted">
             {game.year && (
@@ -136,7 +136,7 @@ export default async function GamePage({ params }: PageProps<"/game/[slug]">) {
           </section>
         </div>
 
-        <aside className="order-2 space-y-8 md:order-none md:pt-24">
+        <aside className="order-2 min-w-0 space-y-8 md:order-none md:pt-24">
           <GameActions game={game} state={user ? await getUserGame(user.id, game.id) : { played: 0, liked: 0, rating: null, backlog: 0 }} lists={user ? await myListsForGame(user.id, game.id) : []} loggedIn={Boolean(user)} />
           <section>
             <h2 className="section-title">
