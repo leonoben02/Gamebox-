@@ -37,7 +37,7 @@ export function ActivityRow({ a }: { a: ActivityItem }) {
     case "backlog":
       text = (
         <>
-          {who} hat {game} auf den Backlog gesetzt
+          {who} hat {game} auf die Playlist gesetzt
         </>
       );
       break;

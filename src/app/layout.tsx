@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: { default: "Gamebox – Dein Spiele-Tagebuch", template: "%s · Gamebox" },
-  description: "Logge die Spiele, die du spielst. Bewerte, schreib Reviews, führe deinen Backlog und entdecke, was deine Freunde zocken.",
+  description: "Logge die Spiele, die du spielst. Bewerte, schreib Reviews, führe deine Playlist und entdecke, was deine Freunde zocken.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

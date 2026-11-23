@@ -1,13 +1,13 @@
 # Gamebox
 
-Ein soziales Spiele-Tagebuch: Spiele loggen, mit halben Sternen bewerten, Reviews schreiben, Backlog führen, Listen kuratieren, Freunden folgen.
+Ein soziales Spiele-Tagebuch: Spiele loggen, mit halben Sternen bewerten, Reviews schreiben, Playlist führen, Listen kuratieren, Freunden folgen.
 
 ## Funktionen
 
 - **Spielseiten** mit Bewertungsverteilung, beliebten Reviews, Reviews von Freunden, Listen, in denen das Spiel vorkommt
-- **Schnellaktionen**: Gespielt, Like, Backlog, Sterne (½-Schritte)
+- **Schnellaktionen**: Gespielt, Like, Playlist, Sterne (½-Schritte)
 - **Loggen**: Datum (Tagebuch), Status (Gespielt / Durchgespielt / 100 % / Abgebrochen), Plattform, Spielzeit, Review, Spoiler-Markierung, „erneut gespielt"
-- **Profil** mit 4 Lieblingsspielen, Statistik, Tagebuch nach Monaten, Reviews, Backlog, Listen, Likes, Folgt/Follower
+- **Profil** mit 4 Lieblingsspielen, Statistik, Tagebuch nach Monaten, Reviews, Playlist, Listen, Likes, Folgt/Follower
 - **Listen** (optional als Rangliste) mit Likes
 - **Reviews** mit Likes und Kommentaren
 - **Aktivitäts-Feed** der Leute, denen du folgst

@@ -80,10 +80,10 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
       <aside className="min-w-0 space-y-10">
         <section>
           <h2 className="section-title">
-            Backlog <Link href={`${base}/backlog`}>{stats.backlog}</Link>
+            Playlist <Link href={`${base}/playlist`}>{stats.backlog}</Link>
           </h2>
           {backlog.length ? (
-            <Link href={`${base}/backlog`} className="flex">
+            <Link href={`${base}/playlist`} className="flex">
               {backlog.slice(0, 5).map((g, i) => (
                 <div key={g.id} className="-ml-5 first:ml-0" style={{ zIndex: 10 - i }}>
                   <GameCover game={g} size="sm" link={false} />

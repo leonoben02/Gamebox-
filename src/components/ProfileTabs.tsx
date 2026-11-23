@@ -11,7 +11,7 @@ export function ProfileTabs({ username }: { username: string }) {
     ["Spiele", `${base}/games`],
     ["Tagebuch", `${base}/diary`],
     ["Reviews", `${base}/reviews`],
-    ["Backlog", `${base}/backlog`],
+    ["Playlist", `${base}/playlist`],
     ["Listen", `${base}/lists`],
     ["Likes", `${base}/likes`],
   ];

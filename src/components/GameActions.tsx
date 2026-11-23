@@ -42,7 +42,7 @@ export function GameActions({
         <Link href="/login" className="font-semibold text-lime hover:underline">
           Melde dich an
         </Link>
-        , um dieses Spiel zu loggen, zu bewerten oder auf deinen Backlog zu setzen.
+        , um dieses Spiel zu loggen, zu bewerten oder auf deine Playlist zu setzen.
       </div>
     );
   }
@@ -79,7 +79,7 @@ export function GameActions({
         <ActionIcon
           on={Boolean(opt.backlog)}
           color="var(--cyan)"
-          label="Backlog"
+          label="Playlist"
           onClick={() => run({ backlog: opt.backlog ? 0 : 1 }, () => toggleBacklog(game.id))}
         >
           <svg viewBox="0 0 24 24" fill="currentColor">

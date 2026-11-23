@@ -52,7 +52,7 @@ export async function Header() {
                   ["Spiele", `/u/${user.username}/games`],
                   ["Tagebuch", `/u/${user.username}/diary`],
                   ["Reviews", `/u/${user.username}/reviews`],
-                  ["Backlog", `/u/${user.username}/backlog`],
+                  ["Playlist", `/u/${user.username}/playlist`],
                   ["Listen", `/u/${user.username}/lists`],
                   ["Likes", `/u/${user.username}/likes`],
                   ["Einstellungen", "/settings"],
