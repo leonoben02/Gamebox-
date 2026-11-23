@@ -2,10 +2,13 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
-import { GOOGLE_STATE_COOKIE, authUrl, googleEnabled } from "@/lib/google";
+import { GOOGLE_STATE_COOKIE, authUrl, canonicalOrigin, googleEnabled } from "@/lib/google";
 
 export async function GET(req: NextRequest) {
   if (!googleEnabled()) redirect("/login?error=google-off");
+  // Started on a preview/deployment URL? Hop to the main address first so the state cookie lives there.
+  const origin = canonicalOrigin(req.nextUrl.origin);
+  if (origin !== req.nextUrl.origin) redirect(`${origin}/auth/google${req.nextUrl.search}`);
   const state = crypto.randomBytes(16).toString("hex");
   const next = req.nextUrl.searchParams.get("next") ?? "/";
   (await cookies()).set(GOOGLE_STATE_COOKIE, JSON.stringify({ state, next }), {
@@ -15,5 +18,5 @@ export async function GET(req: NextRequest) {
     path: "/",
     maxAge: 600,
   });
-  redirect(authUrl(req.nextUrl.origin, state));
+  redirect(authUrl(origin, state));
 }

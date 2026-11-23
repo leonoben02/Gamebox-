@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { startSession } from "@/lib/auth";
-import { GOOGLE_STATE_COOKIE, exchangeCode, googleEnabled, type GoogleProfile } from "@/lib/google";
+import { GOOGLE_STATE_COOKIE, canonicalOrigin, exchangeCode, googleEnabled, type GoogleProfile } from "@/lib/google";
 
 async function freeUsername(p: GoogleProfile) {
   const base =
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   let profile: GoogleProfile;
   try {
-    profile = await exchangeCode(req.nextUrl.origin, code);
+    profile = await exchangeCode(canonicalOrigin(req.nextUrl.origin), code);
   } catch (e) {
     console.error("Google login failed", e);
     redirect("/login?error=google");

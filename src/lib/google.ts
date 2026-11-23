@@ -9,6 +9,15 @@ export function googleEnabled() {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
 
+/**
+ * Always use the main site address for Google, never a preview/deployment URL
+ * (gamebox-abc123-….vercel.app), because Google only accepts the one registered redirect URI.
+ */
+export function canonicalOrigin(requestOrigin: string) {
+  const prod = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  return prod ? `https://${prod}` : requestOrigin;
+}
+
 export function redirectUri(origin: string) {
   return `${origin}/auth/google/callback`;
 }
