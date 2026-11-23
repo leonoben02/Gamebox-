@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { syncCompany } from "@/lib/igdb";
-import { companyGames, getCompanyBySlug } from "@/lib/queries";
+import { companyGames, getCompanyBySlug, playedAmong } from "@/lib/queries";
+import { getCurrentUser } from "@/lib/auth";
+import { PlayedMark, ProgressMeter } from "@/components/ProgressMeter";
 import { GameCover } from "@/components/GameCover";
 import { countryName } from "@/lib/util";
 
@@ -31,6 +33,8 @@ export default async function StudioPage({ params, searchParams }: PageProps<"/s
   const pubCount = all.filter((g) => g.publisher).length;
   const counts = { all: all.length, developer: devCount, publisher: pubCount };
   const country = countryName(studio.country);
+  const viewer = await getCurrentUser();
+  const played = viewer ? await playedAmong(viewer.id, games.map((g) => g.id)) : new Set<number>();
 
   return (
     <div>
@@ -69,13 +73,16 @@ export default async function StudioPage({ params, searchParams }: PageProps<"/s
         ))}
       </nav>
 
+      {viewer && games.length > 0 && <ProgressMeter done={played.size} total={games.length} className="mt-6" />}
       {games.length ? (
         <div className="mt-6 grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6">
           {games.map((g) => (
             <div key={g.id}>
               <GameCover game={g} size="fluid" />
               <div className="mt-1 flex justify-between text-[11px] text-faint">
-                <span>{g.year ?? "–"}</span>
+                <span>
+                  {g.year ?? "–"} {played.has(g.id) && <PlayedMark />}
+                </span>
                 {g.players > 0 && <span>▶ {g.players}</span>}
               </div>
             </div>

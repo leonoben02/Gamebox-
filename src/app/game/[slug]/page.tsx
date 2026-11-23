@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth";
-import { enrichGame, syncGameDetails } from "@/lib/igdb";
+import { enrichGame, syncGameDetails, syncMultiplayer } from "@/lib/igdb";
 import {
   followingIds,
   friendsOnGame,
@@ -24,6 +24,7 @@ import { Heart, Histogram, Stars } from "@/components/Stars";
 import { countryName, formatDate, hueFor, roleLabel } from "@/lib/util";
 import { Tabs } from "@/components/Tabs";
 import { PlatformBadges } from "@/components/PlatformBadges";
+import { MultiplayerBadges } from "@/components/MultiplayerBadges";
 
 export async function generateMetadata({ params }: PageProps<"/game/[slug]">): Promise<Metadata> {
   const g = await getGameBySlug((await params).slug);
@@ -36,7 +37,11 @@ export default async function GamePage({ params }: PageProps<"/game/[slug]">) {
   if (!base) notFound();
   if (!base.cover_url) await enrichGame(base.id, base.title);
   await syncGameDetails(base.id);
-  const game = (await getGameDetails(slug))!;
+  let game = (await getGameDetails(slug))!;
+  if (game.multiplayer === null && game.igdb_id) {
+    await syncMultiplayer([Number(game.igdb_id)]).catch((e) => console.error("IGDB multiplayer failed", e));
+    game = (await getGameDetails(slug))!;
+  }
   const companies = await gameCompanies(game.id);
   const developer = companies.find((c) => c.developer);
   const user = await getCurrentUser();
@@ -115,6 +120,7 @@ export default async function GamePage({ params }: PageProps<"/game/[slug]">) {
             )}
           </p>
           <PlatformBadges platforms={game.platforms} className="mt-4" />
+          <MultiplayerBadges tags={game.multiplayer} className="mt-2" />
           {game.summary && <p className="mt-5 max-w-prose leading-relaxed text-text/85">{game.summary}</p>}
           <div className="clear-both mt-5 md:hidden">{statsLine}</div>
           <div className="mt-6 md:hidden">{actions}</div>

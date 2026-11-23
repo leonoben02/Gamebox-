@@ -1,4 +1,5 @@
 import "server-only";
+import { MP_FIELDS, multiplayerTags } from "./multiplayer";
 import { db } from "./db";
 import { slugify } from "./util";
 
@@ -38,6 +39,8 @@ type IgdbGame = {
   themes?: { name: string }[];
   platforms?: { abbreviation?: string; name: string }[];
   involved_companies?: { developer: boolean; company: { name: string } }[];
+  game_modes?: { slug?: string; name?: string }[];
+  multiplayer_modes?: Parameters<typeof multiplayerTags>[1];
 };
 
 async function query(body: string, endpoint = "games"): Promise<IgdbGame[]> {
@@ -55,7 +58,7 @@ async function query(body: string, endpoint = "games"): Promise<IgdbGame[]> {
 }
 
 const FIELDS =
-  "fields name,slug,summary,first_release_date,total_rating_count,cover.image_id,genres.name,themes.name,platforms.name,platforms.abbreviation,involved_companies.developer,involved_companies.company.name;";
+  `fields ${MP_FIELDS},name,slug,summary,first_release_date,total_rating_count,cover.image_id,genres.name,themes.name,platforms.name,platforms.abbreviation,involved_companies.developer,involved_companies.company.name;`;
 
 /**
  * Upserts IGDB results into the local catalogue so they can be logged, listed and reviewed.
@@ -65,6 +68,7 @@ async function upsert(games: IgdbGame[]): Promise<number[]> {
   if (!games.length) return [];
   const rows = games.map((g) => ({
     g,
+    mp: multiplayerTags(g.game_modes, g.multiplayer_modes),
     slug: slugify(g.name) || g.slug,
     year: g.first_release_date ? new Date(g.first_release_date * 1000).getUTCFullYear() : null,
     cover_url: g.cover ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${g.cover.image_id}.jpg` : null,
@@ -77,15 +81,15 @@ async function upsert(games: IgdbGame[]): Promise<number[]> {
   const byIgdb = new Set(existing.filter((e) => e.igdb_id).map((e) => e.igdb_id));
   const taken = new Set(existing.map((e) => e.slug));
   const stmts: { sql: string; args: (string | number | null)[] }[] = [];
-  for (const { g, slug, year, cover_url } of rows) {
+  for (const { g, mp, slug, year, cover_url } of rows) {
     if (byIgdb.has(g.id)) {
-      stmts.push({ sql: "UPDATE games SET cover_url = COALESCE(?, cover_url), popularity = MAX(popularity, ?) WHERE igdb_id = ?", args: [cover_url, g.total_rating_count ?? 0, g.id] });
+      stmts.push({ sql: "UPDATE games SET cover_url = COALESCE(?, cover_url), popularity = MAX(popularity, ?), multiplayer = ? WHERE igdb_id = ?", args: [cover_url, g.total_rating_count ?? 0, mp, g.id] });
       continue;
     }
     const same = bySlug.get(slug);
     if (same && same.igdb_id === null) {
       // a seeded game with the same title gets linked to IGDB instead of duplicated
-      stmts.push({ sql: "UPDATE games SET igdb_id = ?, cover_url = COALESCE(cover_url, ?), popularity = ? WHERE id = ? AND igdb_id IS NULL", args: [g.id, cover_url, g.total_rating_count ?? 0, same.id] });
+      stmts.push({ sql: "UPDATE games SET igdb_id = ?, cover_url = COALESCE(cover_url, ?), popularity = ?, multiplayer = ? WHERE id = ? AND igdb_id IS NULL", args: [g.id, cover_url, g.total_rating_count ?? 0, mp, same.id] });
       byIgdb.add(g.id);
       continue;
     }
@@ -95,8 +99,8 @@ async function upsert(games: IgdbGame[]): Promise<number[]> {
     taken.add(unique);
     byIgdb.add(g.id);
     stmts.push({
-      sql: `INSERT OR IGNORE INTO games (slug, title, year, developer, genres, platforms, summary, cover_url, igdb_id, popularity, source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'igdb')`,
+      sql: `INSERT OR IGNORE INTO games (slug, title, year, developer, genres, platforms, summary, cover_url, igdb_id, popularity, multiplayer, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'igdb')`,
       args: [
         unique,
         g.name,
@@ -108,6 +112,7 @@ async function upsert(games: IgdbGame[]): Promise<number[]> {
         cover_url,
         g.id,
         g.total_rating_count ?? 0,
+        mp,
       ],
     });
   }
@@ -207,7 +212,8 @@ type IgdbDetails = {
   franchises?: { name: string }[];
   collections?: { name: string }[];
   game_engines?: { name: string }[];
-  game_modes?: { name: string }[];
+  game_modes?: { name: string; slug?: string }[];
+  multiplayer_modes?: Parameters<typeof multiplayerTags>[1];
   player_perspectives?: { name: string }[];
 };
 
@@ -215,7 +221,7 @@ const COMPANY_FIELDS =
   "involved_companies.developer,involved_companies.publisher,involved_companies.porting,involved_companies.supporting," +
   "involved_companies.company.name,involved_companies.company.slug,involved_companies.company.country,involved_companies.company.logo.image_id";
 
-const DETAIL_FIELDS = `fields ${COMPANY_FIELDS},release_dates.date,release_dates.human,release_dates.platform.abbreviation,release_dates.platform.name,franchises.name,collections.name,game_engines.name,game_modes.name,player_perspectives.name;`;
+const DETAIL_FIELDS = `fields ${COMPANY_FIELDS},release_dates.date,release_dates.human,release_dates.platform.abbreviation,release_dates.platform.name,franchises.name,collections.name,game_engines.name,game_modes.name,player_perspectives.name,${MP_FIELDS};`;
 
 const logoUrl = (id?: string) => (id ? `https://images.igdb.com/igdb/image/upload/t_logo_med/${id}.png` : null);
 
@@ -280,8 +286,8 @@ export async function syncGameDetails(gameId: number): Promise<void> {
     await db.batch([
       ...companyStatements(gameId, d.involved_companies),
       {
-        sql: `UPDATE games SET engines = ?, modes = ?, perspectives = ?, franchise = ?, releases = ?, details_synced_at = datetime('now') WHERE id = ?`,
-        args: [names(d.game_engines), names(d.game_modes), names(d.player_perspectives), (d.franchises?.[0] ?? d.collections?.[0])?.name ?? "", JSON.stringify(releases), gameId],
+        sql: `UPDATE games SET engines = ?, modes = ?, multiplayer = ?, perspectives = ?, franchise = ?, releases = ?, details_synced_at = datetime('now') WHERE id = ?`,
+        args: [names(d.game_engines), names(d.game_modes), multiplayerTags(d.game_modes, d.multiplayer_modes), names(d.player_perspectives), (d.franchises?.[0] ?? d.collections?.[0])?.name ?? "", JSON.stringify(releases), gameId],
       },
     ]);
   } catch (e) {
@@ -372,11 +378,29 @@ export async function syncCatalogue(budgetMs: number): Promise<void> {
   const noCover = (await db.prepare("SELECT id, title FROM games WHERE source = 'seed' AND cover_url IS NULL").all()) as { id: number; title: string }[];
   await inGroups(noCover, (g) => enrichGame(g.id, g.title));
   await importPopular(until);
+  await backfillMultiplayer(until);
   // details for the 100 best-known games; the rest get theirs when someone opens their page
   const noDetails = (await db
     .prepare("SELECT id FROM games WHERE source = 'seed' AND igdb_id IS NOT NULL AND details_synced_at IS NULL ORDER BY popularity DESC LIMIT 100")
     .all()) as { id: number }[];
   await inGroups(noDetails, (g) => syncGameDetails(g.id));
+}
+
+/** Looks up local/online multiplayer for games imported before that existed, 500 per IGDB request. */
+export async function backfillMultiplayer(until: number): Promise<void> {
+  while (Date.now() < until) {
+    const rows = (await db.prepare("SELECT igdb_id FROM games WHERE igdb_id IS NOT NULL AND multiplayer IS NULL LIMIT 500").all()) as { igdb_id: number }[];
+    if (!rows.length) return;
+    await syncMultiplayer(rows.map((r) => Number(r.igdb_id)));
+  }
+}
+
+/** Stores the multiplayer tags for these IGDB ids (max 500). */
+export async function syncMultiplayer(igdbIds: number[]): Promise<void> {
+  if (!igdbEnabled || !igdbIds.length) return;
+  const found = await query(`fields ${MP_FIELDS}; where id = (${igdbIds.join(",")}); limit 500;`);
+  const byId = new Map(found.map((g) => [g.id, multiplayerTags(g.game_modes, g.multiplayer_modes)]));
+  await db.batch(igdbIds.map((id) => ({ sql: "UPDATE games SET multiplayer = ? WHERE igdb_id = ?", args: [byId.get(id) ?? "", id] })));
 }
 
 export const CATALOGUE_TARGET = 2000;

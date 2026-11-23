@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { getList, hasLikedList } from "@/lib/queries";
+import { getList, hasLikedList, playedAmong } from "@/lib/queries";
+import { PlayedMark, ProgressMeter } from "@/components/ProgressMeter";
 import { moveListItem, toggleListItem, toggleListLike } from "@/app/actions";
 import { Avatar } from "@/components/Avatar";
 import { GameCover } from "@/components/GameCover";
@@ -15,6 +16,7 @@ export default async function ListPage({ params }: PageProps<"/list/[id]">) {
   if (!list) notFound();
   const viewer = await getCurrentUser();
   const mine = viewer?.id === list.user.id;
+  const played = viewer ? await playedAmong(viewer.id, list.games.map((g) => g.id)) : new Set<number>();
 
   return (
     <div>
@@ -41,6 +43,7 @@ export default async function ListPage({ params }: PageProps<"/list/[id]">) {
           </Link>
         )}
       </div>
+      {viewer && list.games.length > 0 && <ProgressMeter done={played.size} total={list.games.length} className="mt-6 max-w-md" />}
       {mine && (
         <div className="mt-6">
           <ListAddGame listId={id} existing={list.games.map((g) => g.id)} />
@@ -51,7 +54,10 @@ export default async function ListPage({ params }: PageProps<"/list/[id]">) {
           <li key={g.id}>
             <GameCover game={g} size="fluid" />
             <div className="mt-1 flex items-center justify-between text-xs">
-              {list.ranked ? <span className="font-display text-lg font-bold text-muted">{i + 1}</span> : <span />}
+              <span className="flex items-center gap-1.5">
+                {list.ranked && <span className="font-display text-lg font-bold text-muted">{i + 1}</span>}
+                {played.has(g.id) && <PlayedMark />}
+              </span>
               {mine && (
                 <span className="flex gap-2 text-faint">
                   <form action={moveListItem.bind(null, id, g.id, -1)}>

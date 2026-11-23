@@ -207,6 +207,7 @@ async function open(): Promise<Client> {
     ["franchise", "TEXT NOT NULL DEFAULT ''"],
     ["releases", "TEXT NOT NULL DEFAULT '[]'"], // JSON [{platform, date, human}]
     ["details_synced_at", "TEXT"],
+    ["multiplayer", "TEXT"], // tags from src/lib/multiplayer.ts; NULL = not looked up yet
     ["trending", "INTEGER NOT NULL DEFAULT 0"], // rank score from IGDB's current page visits (higher = hotter right now)
     ["popularity", "INTEGER NOT NULL DEFAULT 0"], // IGDB total_rating_count, for sorting unplayed games
   ];

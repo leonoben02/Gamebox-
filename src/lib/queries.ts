@@ -74,7 +74,7 @@ export async function searchLocalGames(q: string, limit = 40): Promise<Game[]> {
 
 export type BrowseSort = "popular" | "rating" | "newest" | "oldest" | "title";
 
-export async function browseGames(opts: { sort?: BrowseSort; genre?: string; platform?: Family; limit?: number }): Promise<(Game & { players: number; avg: number | null })[]> {
+export async function browseGames(opts: { sort?: BrowseSort; genre?: string; platform?: Family; mode?: string; limit?: number }): Promise<(Game & { players: number; avg: number | null })[]> {
   const order = {
     // until there are enough members, "what's hot on IGDB right now" leads; own players break ties
     popular: "g.trending DESC, players DESC, g.popularity DESC",
@@ -95,6 +95,10 @@ export async function browseGames(opts: { sort?: BrowseSort; genre?: string; pla
     const names = rawNamesFor(opts.platform);
     conds.push(`(${names.map(() => "(',' || g.platforms || ',') LIKE ?").join(" OR ")})`);
     params.push(...names.map((n) => `%,${n},%`));
+  }
+  if (opts.mode) {
+    conds.push("(',' || g.multiplayer || ',') LIKE ?");
+    params.push(`%,${opts.mode},%`);
   }
   const where = `WHERE ${conds.join(" AND ")}`;
   return await db
@@ -476,6 +480,7 @@ export async function friendsPlaying(userId: number, limit = 12) {
 export type GameDetails = Game & {
   engines: string;
   modes: string;
+  multiplayer: string | null;
   perspectives: string;
   franchise: string;
   releases: string;
@@ -485,7 +490,7 @@ export type GameDetails = Game & {
 
 export async function getGameDetails(slug: string): Promise<GameDetails | undefined> {
   return (await db
-    .prepare(`SELECT ${GAME_COLS}, g.engines, g.modes, g.perspectives, g.franchise, g.releases, g.igdb_id, g.details_synced_at FROM games g WHERE slug = ?`)
+    .prepare(`SELECT ${GAME_COLS}, g.engines, g.modes, g.multiplayer, g.perspectives, g.franchise, g.releases, g.igdb_id, g.details_synced_at FROM games g WHERE slug = ?`)
     .get(slug)) as GameDetails | undefined;
 }
 
@@ -554,4 +559,13 @@ export async function classicGames(before = 2006, limit = 12) {
        ORDER BY (SELECT AVG(rating) FROM user_games ug WHERE ug.game_id = g.id) DESC, g.popularity DESC LIMIT ?`,
     )
     .all(before, limit)) as Game[];
+}
+
+/** Which of these games the user has marked as played (for "Du hast X von Y gespielt"). */
+export async function playedAmong(userId: number, gameIds: number[]): Promise<Set<number>> {
+  if (!gameIds.length) return new Set();
+  const rows = (await db
+    .prepare(`SELECT game_id FROM user_games WHERE user_id = ? AND played = 1 AND game_id IN (${gameIds.map(() => "?").join(",")})`)
+    .all(userId, ...gameIds)) as { game_id: number }[];
+  return new Set(rows.map((r) => Number(r.game_id)));
 }

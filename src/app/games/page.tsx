@@ -5,6 +5,7 @@ import { GameCover } from "@/components/GameCover";
 import { Stars } from "@/components/Stars";
 import { FamilyIcon } from "@/components/PlatformBadges";
 import { FAMILIES, type Family } from "@/lib/platforms";
+import { MP_LABELS, type MpTag } from "@/lib/multiplayer";
 
 export const metadata: Metadata = { title: "Spiele" };
 
@@ -21,14 +22,15 @@ export default async function GamesPage({ searchParams }: PageProps<"/games">) {
   const sort = (SORTS.find(([k]) => k === sp.sort)?.[0] ?? "popular") as BrowseSort;
   const genre = typeof sp.genre === "string" ? sp.genre : undefined;
   const platform = FAMILIES.find((f) => f.key === sp.platform && f.key !== "other")?.key as Family | undefined;
+  const mode = (["local", "online", "coop"] as MpTag[]).find((m) => m === sp.mode);
   const shown = Math.min(Math.max(Number(sp.n) || 96, 96), 960);
-  const games = await browseGames({ sort, genre, platform, limit: shown + 1 });
+  const games = await browseGames({ sort, genre, platform, mode, limit: shown + 1 });
   const more = games.length > shown;
   if (more) games.pop();
   const genres = await allGenres();
   const qs = (p: Record<string, string | undefined>) => {
     const o = new URLSearchParams();
-    const merged: Record<string, string | undefined> = { sort, genre, platform, ...p };
+    const merged: Record<string, string | undefined> = { sort, genre, platform, mode, ...p };
     for (const [k, v] of Object.entries(merged)) if (v) o.set(k, v);
     return `?${o}`;
   };
@@ -56,6 +58,22 @@ export default async function GamesPage({ searchParams }: PageProps<"/games">) {
                 <FamilyIcon family={f.key} className="h-4 w-4" />
               </span>
               {f.label}
+            </Link>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+        {(["local", "online", "coop"] as MpTag[]).map((m) => {
+          const on = mode === m;
+          const { label, color } = MP_LABELS[m];
+          return (
+            <Link
+              key={m}
+              href={qs({ mode: on ? "" : m })}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-sm transition ${on ? "text-text" : "border-line text-muted hover:text-text"}`}
+              style={on ? { borderColor: color, background: `${color}26` } : undefined}
+            >
+              {label}
             </Link>
           );
         })}
