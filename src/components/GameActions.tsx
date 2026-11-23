@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useOptimistic, useState, useTransition } from "react";
-import { setRating, toggleBacklog, toggleListItem, toggleLiked, togglePlayed } from "@/app/actions";
+import { setRating, toggleBacklog, toggleListItem, toggleLiked, togglePlayed, togglePlaying } from "@/app/actions";
 import type { UserGame } from "@/lib/queries";
 import { LogDialog } from "./LogDialog";
 import { StarInput } from "./StarInput";
@@ -55,15 +55,25 @@ export function GameActions({
 
   return (
     <div className="overflow-hidden rounded-lg bg-surface text-sm">
-      <div className="flex justify-around px-4 py-4">
+      <div className="flex justify-around gap-1 px-2 py-4">
         <ActionIcon
           on={Boolean(opt.played)}
           color="var(--lime)"
-          label={opt.played ? "Gespielt" : "Spielen"}
+          label="Gespielt"
           onClick={() => run(opt.played ? { played: 0 } : { played: 1, backlog: 0 }, () => togglePlayed(game.id))}
         >
           <svg viewBox="0 0 24 24" fill="currentColor">
             <path d="M7 7h10a5 5 0 0 1 4.9 6l-.9 4.2a2.4 2.4 0 0 1-4.1 1.1L14.6 16H9.4l-2.3 2.3A2.4 2.4 0 0 1 3 17.2L2.1 13A5 5 0 0 1 7 7zm1 3v1.5H6.5v1H8V14h1v-1.5h1.5v-1H9V10H8zm7.5.5a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm2 2a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8z" />
+          </svg>
+        </ActionIcon>
+        <ActionIcon
+          on={Boolean(opt.playing)}
+          color="var(--violet)"
+          label={opt.playing ? "Spiele gerade" : "Spiele ich"}
+          onClick={() => run(opt.playing ? { playing: 0 } : { playing: 1, backlog: 0 }, () => togglePlaying(game.id))}
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-2 5.5v9l7-4.5-7-4.5z" />
           </svg>
         </ActionIcon>
         <ActionIcon

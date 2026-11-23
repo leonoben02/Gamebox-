@@ -5,6 +5,7 @@ import {
   browseGames,
   classicGames,
   followingIds,
+  friendsPlaying,
   friendsRecentLogs,
   gamesByGenre,
   popularLists,
@@ -73,6 +74,7 @@ async function GamesTab({ userId }: { userId?: number }) {
   if (trending.length < 6) trending = await trendingGames(60, 12);
   if (trending.length < 6) trending = await browseGames({ sort: "popular", limit: 12 });
   const friends = userId ? await friendsRecentLogs(userId, 12) : [];
+  const playingNow = userId ? await friendsPlaying(userId, 12) : [];
   const [top, classics, indies] = await Promise.all([topRatedGames(12), classicGames(2006, 12), gamesByGenre("Indie", 12)]);
 
   return (
@@ -101,6 +103,20 @@ async function GamesTab({ userId }: { userId?: number }) {
                     {l.review ? <span className="text-muted" title="Mit Review">≡</span> : null}
                   </span>
                 </span>
+              </Link>
+            </RowItem>
+          ))}
+        </CoverRow>
+      )}
+
+      {playingNow.length > 0 && (
+        <CoverRow title="Freunde spielen gerade">
+          {playingNow.map(({ game, user }) => (
+            <RowItem key={`${user.id}-${game.id}`}>
+              <GameCover game={game} size="fluid" />
+              <Link href={`/u/${user.username}`} className="mt-2 flex items-center gap-2">
+                <Avatar user={user} size={26} link={false} />
+                <span className="truncate text-[15px] font-semibold text-muted">{user.display_name}</span>
               </Link>
             </RowItem>
           ))}

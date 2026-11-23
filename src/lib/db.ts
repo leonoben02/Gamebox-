@@ -203,6 +203,8 @@ async function open(): Promise<Client> {
     ["details_synced_at", "TEXT"],
   ];
   for (const [name, type] of add) if (!cols.has(name)) await client.execute(`ALTER TABLE games ADD COLUMN ${name} ${type}`);
+  const ugCols = new Set((await client.execute("PRAGMA table_info(user_games)")).rows.map((c) => String(c.name)));
+  if (!ugCols.has("playing")) await client.execute("ALTER TABLE user_games ADD COLUMN playing INTEGER NOT NULL DEFAULT 0");
   const { rows } = await client.execute("SELECT COUNT(*) AS n FROM games");
   if (Number(rows[0].n) === 0) {
     // all seed statements use fixed ids + INSERT OR IGNORE, so concurrent cold starts are harmless

@@ -34,6 +34,13 @@ export function ActivityRow({ a }: { a: ActivityItem }) {
         </>
       );
       break;
+    case "playing":
+      text = (
+        <>
+          {who} spielt gerade {game}
+        </>
+      );
+      break;
     case "backlog":
       text = (
         <>

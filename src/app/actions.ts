@@ -46,7 +46,7 @@ export async function logout() {
 
 // ---------- game status (quick actions) ----------
 
-async function upsertUserGame(userId: number, gameId: number, patch: Partial<{ played: number; liked: number; rating: number | null; backlog: number }>) {
+async function upsertUserGame(userId: number, gameId: number, patch: Partial<{ played: number; liked: number; rating: number | null; backlog: number; playing: number }>) {
   await db.prepare("INSERT INTO user_games (user_id, game_id) VALUES (?, ?) ON CONFLICT DO NOTHING").run(userId, gameId);
   const sets = Object.keys(patch).map((k) => `${k} = @${k}`);
   await db.prepare(`UPDATE user_games SET ${sets.join(", ")}, updated_at = datetime('now') WHERE user_id = @userId AND game_id = @gameId`).run({
@@ -55,7 +55,7 @@ async function upsertUserGame(userId: number, gameId: number, patch: Partial<{ p
     gameId,
   });
   // drop empty rows
-  await db.prepare("DELETE FROM user_games WHERE user_id = ? AND game_id = ? AND played = 0 AND liked = 0 AND rating IS NULL AND backlog = 0").run(userId, gameId);
+  await db.prepare("DELETE FROM user_games WHERE user_id = ? AND game_id = ? AND played = 0 AND liked = 0 AND rating IS NULL AND backlog = 0 AND playing = 0").run(userId, gameId);
 }
 
 async function gameSlug(gameId: number) {
@@ -90,6 +90,16 @@ export async function toggleBacklog(gameId: number) {
   const backlog = cur?.backlog ? 0 : 1;
   await upsertUserGame(u.id, gameId, { backlog });
   if (backlog) await db.prepare("INSERT INTO activity (user_id, type, game_id) VALUES (?, 'backlog', ?)").run(u.id, gameId);
+  await refreshGame(gameId);
+}
+
+export async function togglePlaying(gameId: number) {
+  const u = await requireUser();
+  const cur = await db.prepare("SELECT playing FROM user_games WHERE user_id = ? AND game_id = ?").get(u.id, gameId) as { playing: number } | undefined;
+  const playing = cur?.playing ? 0 : 1;
+  // Starting a game takes it off the Playlist.
+  await upsertUserGame(u.id, gameId, playing ? { playing, backlog: 0 } : { playing });
+  if (playing) await db.prepare("INSERT INTO activity (user_id, type, game_id) VALUES (?, 'playing', ?)").run(u.id, gameId);
   await refreshGame(gameId);
 }
 

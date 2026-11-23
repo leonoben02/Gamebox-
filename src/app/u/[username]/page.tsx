@@ -12,6 +12,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
   if (!profile) notFound();
   const viewer = await getCurrentUser();
   const favs = await favoriteGames(profile.id);
+  const playing = await userGames(profile.id, "playing", "recent");
   const recent = (await userGames(profile.id, "played", "recent")).slice(0, 4);
   const reviews = await userReviews(profile.id, viewer?.id ?? 0, 3);
   const diary = (await userDiary(profile.id)).slice(0, 8);
@@ -45,6 +46,16 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
             </p>
           )}
         </section>
+        {playing.length > 0 && (
+          <section>
+            <h2 className="section-title">Spielt gerade</h2>
+            <div className="grid grid-cols-4 gap-4">
+              {playing.slice(0, 8).map((g) => (
+                <GameCover key={g.id} game={g} size="fluid" />
+              ))}
+            </div>
+          </section>
+        )}
         <section>
           <h2 className="section-title">
             Zuletzt gespielt <Link href={`${base}/games`}>Alle</Link>

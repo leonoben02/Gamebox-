@@ -155,19 +155,19 @@ export async function gameStats(gameId: number) {
 
 // ---------- user <-> game ----------
 
-export type UserGame = { played: number; liked: number; rating: number | null; backlog: number };
+export type UserGame = { played: number; liked: number; rating: number | null; backlog: number; playing: number };
 
 export async function getUserGame(userId: number, gameId: number): Promise<UserGame> {
   return (
-    (await db.prepare("SELECT played, liked, rating, backlog FROM user_games WHERE user_id = ? AND game_id = ?").get(userId, gameId) as
+    (await db.prepare("SELECT played, liked, rating, backlog, playing FROM user_games WHERE user_id = ? AND game_id = ?").get(userId, gameId) as
       | UserGame
-      | undefined) ?? { played: 0, liked: 0, rating: null, backlog: 0 }
+      | undefined) ?? { played: 0, liked: 0, rating: null, backlog: 0, playing: 0 }
   );
 }
 
 /** Games a user has played/rated, with their own rating (Letterboxd's "Films" tab). */
-export async function userGames(userId: number, filter: "played" | "backlog" | "liked", sort: "recent" | "rating" | "title" = "recent") {
-  const where = { played: "ug.played = 1", backlog: "ug.backlog = 1", liked: "ug.liked = 1" }[filter];
+export async function userGames(userId: number, filter: "played" | "backlog" | "liked" | "playing", sort: "recent" | "rating" | "title" = "recent") {
+  const where = { played: "ug.played = 1", backlog: "ug.backlog = 1", liked: "ug.liked = 1", playing: "ug.playing = 1" }[filter];
   const order = { recent: "ug.updated_at DESC", rating: "ug.rating IS NULL, ug.rating DESC", title: "g.title COLLATE NOCASE" }[sort];
   return await db
     .prepare(`SELECT ${GAME_COLS}, ug.rating AS user_rating, ug.liked AS user_liked FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.user_id = ? AND ${where} ORDER BY ${order}`)
@@ -450,6 +450,19 @@ export async function friendsRecentLogs(userId: number, limit = 12) {
       .prepare(`${REVIEW_SELECT} WHERE l.user_id IN (SELECT followee_id FROM follows WHERE follower_id = @userId) ORDER BY l.created_at DESC LIMIT @limit`)
       .all({ userId, viewer: userId, limit }) as Record<string, unknown>[]
   ).map(toReview);
+}
+
+/** Games the people you follow are playing right now, newest first (one entry per person and game). */
+export async function friendsPlaying(userId: number, limit = 12) {
+  const rows = (await db
+    .prepare(
+      `SELECT ${GAME_COLS}, u.id AS u_id, u.username AS u_username, u.display_name AS u_display_name, u.avatar_hue AS u_avatar_hue
+       FROM user_games ug JOIN games g ON g.id = ug.game_id JOIN users u ON u.id = ug.user_id
+       WHERE ug.playing = 1 AND ug.user_id IN (SELECT followee_id FROM follows WHERE follower_id = ?)
+       ORDER BY ug.updated_at DESC LIMIT ?`,
+    )
+    .all(userId, limit)) as Record<string, unknown>[];
+  return rows.map((r) => ({ game: r as unknown as Game, user: pick<UserLite>(r, "u_") }));
 }
 
 // ---------- studios ----------
