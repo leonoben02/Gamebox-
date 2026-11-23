@@ -1,7 +1,9 @@
 import { createClient, type Client, type InArgs, type Transaction } from "@libsql/client";
 import fs from "node:fs";
 import path from "node:path";
-import { seedStatements } from "./seed";
+import { catalogStatements, EXTRA_GAMES, SEED_GAMES, seedStatements } from "./seed";
+
+const SEED_GAMES_TOTAL = SEED_GAMES.length + EXTRA_GAMES.length;
 
 /**
  * Database: libSQL. Locally a SQLite file (./data/gamebox.db); in production a Turso database
@@ -206,6 +208,8 @@ async function open(): Promise<Client> {
     // all seed statements use fixed ids + INSERT OR IGNORE, so concurrent cold starts are harmless
     await client.batch(seedStatements(process.env.SEED_DEMO_USERS !== "false"), "write");
   }
+  const seeded = await client.execute("SELECT COUNT(*) AS n FROM games WHERE source = 'seed'");
+  if (Number(seeded.rows[0].n) < SEED_GAMES_TOTAL) await client.batch(catalogStatements(), "write");
   return client;
 }
 

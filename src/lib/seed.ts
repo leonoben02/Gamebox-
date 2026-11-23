@@ -57,6 +57,49 @@ export const SEED_GAMES: SeedGame[] = [
   ["Lethal Company", 2023, "Zeekerss", "Horror,Co-op,Indie", "PC", "Als Angestellte einer Firma sammelt man auf verlassenen Monden Schrott ein und hofft, zu überleben."],
 ];
 
+// Added after launch. These don't get fixed ids (imported games may already use ids above 48);
+// catalogStatements() inserts them by slug, so existing databases pick them up too.
+export const EXTRA_GAMES: SeedGame[] = [
+  ["Assassin's Creed II", 2009, "Ubisoft Montreal", "Action-Adventure,Open World,Stealth", "PC,PS3,Xbox 360,PS4,Xbox One", "Ezio Auditore will im Florenz der Renaissance den Mord an seiner Familie rächen."],
+  ["Assassin's Creed IV Black Flag", 2013, "Ubisoft Montreal", "Action-Adventure,Open World,Pirates", "PC,PS4,PS3,Xbox One,Xbox 360,Switch", "Der Pirat Edward Kenway segelt durch die Karibik und gerät zwischen Assassinen und Templer."],
+  ["Assassin's Creed Odyssey", 2018, "Ubisoft Quebec", "Action-RPG,Open World", "PC,PS4,Xbox One,Switch", "Als Söldner im antiken Griechenland kämpfst du dich durch den Peloponnesischen Krieg."],
+  ["Assassin's Creed Valhalla", 2020, "Ubisoft Montreal", "Action-RPG,Open World", "PC,PS5,PS4,Xbox Series X|S,Xbox One", "Die Wikingerin oder der Wikinger Eivor gründet mit dem eigenen Clan eine neue Heimat in England."],
+  ["Assassin's Creed Shadows", 2025, "Ubisoft Quebec", "Action-Adventure,Open World,Stealth", "PC,PS5,Xbox Series X|S", "Die Shinobi Naoe und der Samurai Yasuke im Japan der Sengoku-Zeit."],
+  ["Far Cry 3", 2012, "Ubisoft Montreal", "Shooter,First-Person,Open World", "PC,PS3,Xbox 360,PS4,Xbox One", "Jason Brody strandet auf den Rook Islands und muss seine Freunde aus den Händen von Vaas befreien."],
+  ["Far Cry 5", 2018, "Ubisoft Montreal", "Shooter,First-Person,Open World", "PC,PS4,Xbox One", "Im ländlichen Montana stellst du dich einer fanatischen Sekte und ihrem Anführer Joseph Seed."],
+  ["Prince of Persia: The Sands of Time", 2003, "Ubisoft Montreal", "Action-Adventure,Platformer", "PS2,GameCube,Xbox,PC", "Ein Prinz setzt den Sand der Zeit frei und muss den Fehler mit einem magischen Dolch rückgängig machen."],
+  ["Prince of Persia: The Lost Crown", 2024, "Ubisoft Montpellier", "Metroidvania,Action", "PC,Switch,PS5,PS4,Xbox Series X|S,Xbox One", "Der Krieger Sargon sucht auf dem verfluchten Berg Qaf nach dem entführten Prinzen."],
+  ["Rayman Legends", 2013, "Ubisoft Montpellier", "Platformer,2D", "PC,PS4,Xbox One,Switch,Wii U,PS3,Xbox 360", "Rayman und Globox rennen, springen und trommeln sich durch handgezeichnete Welten."],
+  ["Tom Clancy's Splinter Cell: Chaos Theory", 2005, "Ubisoft Montreal", "Stealth,Action", "PC,Xbox,PS2,GameCube", "Sam Fisher schleicht durch die Schatten, um einen Informationskrieg zu verhindern."],
+  ["Rainbow Six Siege", 2015, "Ubisoft Montreal", "Shooter,First-Person,Tactical,Multiplayer", "PC,PS5,PS4,Xbox Series X|S,Xbox One", "Taktische Fünf-gegen-fünf-Gefechte, in denen jede Wand ein Durchgang werden kann."],
+  ["Watch Dogs 2", 2016, "Ubisoft Montreal", "Action-Adventure,Open World", "PC,PS4,Xbox One", "Der Hacker Marcus Holloway legt sich in San Francisco mit einem allwissenden Überwachungssystem an."],
+  ["Anno 1800", 2019, "Ubisoft Mainz", "Strategy,City Builder", "PC,PS5,Xbox Series X|S", "Baue im Zeitalter der Industrialisierung Städte, Handelsrouten und ein Imperium auf."],
+  ["Tom Clancy's The Division 2", 2019, "Massive Entertainment", "Shooter,Third-Person,Looter", "PC,PS4,Xbox One", "Agenten der Division sollen das von einer Pandemie gezeichnete Washington D.C. zurückerobern."],
+  ["Child of Light", 2014, "Ubisoft Montreal", "RPG,Platformer", "PC,PS4,PS3,Xbox One,Xbox 360,Switch,Wii U", "Die junge Aurora erwacht im Märchenland Lemuria und will die Sonne, den Mond und die Sterne zurückholen."],
+  ["Valiant Hearts: The Great War", 2014, "Ubisoft Montpellier", "Puzzle,Adventure", "PC,PS4,PS3,Xbox One,Xbox 360,Switch,Mobile", "Vier Menschen und ein Hund im Ersten Weltkrieg, erzählt als gezeichnetes Puzzle-Abenteuer."],
+  ["Beyond Good & Evil", 2003, "Ubisoft Montpellier", "Action-Adventure", "PS2,GameCube,Xbox,PC", "Die Reporterin Jade deckt mit ihrer Kamera eine Verschwörung auf dem Planeten Hillys auf."],
+  ["For Honor", 2017, "Ubisoft Montreal", "Fighting,Action,Multiplayer", "PC,PS4,Xbox One", "Ritter, Wikinger und Samurai kämpfen in Nahkampfduellen um die Vorherrschaft."],
+  ["Immortals Fenyx Rising", 2020, "Ubisoft Quebec", "Action-Adventure,Open World", "PC,PS5,PS4,Xbox Series X|S,Xbox One,Switch", "Fenyx soll die griechischen Götter vor dem Titanen Typhon retten."],
+  ["Mario + Rabbids Kingdom Battle", 2017, "Ubisoft Milan", "Strategy,Turn-based", "Switch", "Mario und die chaotischen Rabbids liefern sich rundenbasierte Taktikgefechte im Pilzkönigreich."],
+  ["Star Wars Outlaws", 2024, "Massive Entertainment", "Action-Adventure,Open World", "PC,PS5,Xbox Series X|S,Switch 2", "Die Diebin Kay Vess plant zwischen Imperium und Verbrechersyndikaten den großen Coup."],
+  ["Trackmania", 2020, "Nadeo", "Racing,Multiplayer", "PC,PS5,PS4,Xbox Series X|S,Xbox One", "Kurze Strecken, Loopings und Sprünge: Rennen gegen die Uhr, bis jede Hundertstel sitzt."],
+  ["Avatar: Frontiers of Pandora", 2023, "Massive Entertainment", "Action-Adventure,Open World,First-Person", "PC,PS5,Xbox Series X|S", "Als Na'vi erkundest du die Westgrenze von Pandora und stellst dich der RDA entgegen."],
+];
+
+/** Adds catalogue games missing from an existing database (by slug) and marks them as part of the catalogue. */
+export function catalogStatements(): InStatement[] {
+  return EXTRA_GAMES.flatMap(([title, year, developer, genres, platforms, summary]) => {
+    const slug = slugify(title);
+    return [
+      {
+        sql: "INSERT INTO games (slug, title, year, developer, genres, platforms, summary) SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM games WHERE slug = ?)",
+        args: [slug, title, year, developer, genres, platforms, summary, slug],
+      },
+      { sql: "UPDATE games SET source = 'seed' WHERE slug = ?", args: [slug] },
+    ];
+  });
+}
+
 // FNV-1a: deterministic but well-mixed, so demo data looks varied.
 function hash(s: string) {
   let h = 0x811c9dc5;
