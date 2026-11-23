@@ -320,3 +320,37 @@ export async function syncCompany(companyId: number): Promise<void> {
     console.error("IGDB company sync failed", e);
   }
 }
+
+// ---------- maintenance (used by /sync) ----------
+
+/** Checks the IGDB credentials with one tiny request; returns null when everything works, else a short reason. */
+export async function igdbProblem(): Promise<string | null> {
+  if (!CLIENT_ID || !CLIENT_SECRET) return "IGDB_CLIENT_ID oder IGDB_CLIENT_SECRET fehlt in den Umgebungsvariablen.";
+  try {
+    await query("fields id; limit 1;");
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
+  }
+}
+
+/**
+ * Fills covers, then details + studios for catalogue games, 4 IGDB lookups per second, until the time
+ * budget runs out. Safe to call repeatedly: every step skips what is already done.
+ */
+export async function syncCatalogue(budgetMs: number): Promise<void> {
+  const until = Date.now() + budgetMs;
+  const inGroups = async <T,>(items: T[], fn: (x: T) => Promise<void>) => {
+    for (let i = 0; i < items.length && Date.now() < until; i += 4) {
+      const started = Date.now();
+      await Promise.all(items.slice(i, i + 4).map(fn));
+      await new Promise((r) => setTimeout(r, Math.max(0, 1100 - (Date.now() - started))));
+    }
+  };
+  const noCover = (await db.prepare("SELECT id, title FROM games WHERE source = 'seed' AND cover_url IS NULL").all()) as { id: number; title: string }[];
+  await inGroups(noCover, (g) => enrichGame(g.id, g.title));
+  const noDetails = (await db
+    .prepare("SELECT id FROM games WHERE source = 'seed' AND igdb_id IS NOT NULL AND details_synced_at IS NULL")
+    .all()) as { id: number }[];
+  await inGroups(noDetails, (g) => syncGameDetails(g.id));
+}
