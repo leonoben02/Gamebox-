@@ -69,12 +69,13 @@ export async function Header() {
             </details>
           </div>
         ) : (
-          <div className="ml-auto flex items-center gap-4 text-sm font-semibold uppercase tracking-wider sm:ml-0">
-            <Link href="/login" className="text-muted hover:text-text">
+          <div className="ml-auto flex items-center gap-3 text-xs font-semibold uppercase tracking-wider sm:ml-0 sm:gap-4 sm:text-sm">
+            <Link href="/login" className="whitespace-nowrap text-muted hover:text-text">
               Anmelden
             </Link>
-            <Link href="/signup" className="btn-primary !py-1.5">
-              Konto erstellen
+            <Link href="/signup" className="btn-primary whitespace-nowrap !py-1.5">
+              <span className="sm:hidden">Registrieren</span>
+              <span className="hidden sm:inline">Konto erstellen</span>
             </Link>
           </div>
         )}

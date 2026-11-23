@@ -213,6 +213,10 @@ async function open(): Promise<Client> {
   for (const [name, type] of add) if (!cols.has(name)) await client.execute(`ALTER TABLE games ADD COLUMN ${name} ${type}`);
   const ugCols = new Set((await client.execute("PRAGMA table_info(user_games)")).rows.map((c) => String(c.name)));
   if (!ugCols.has("playing")) await client.execute("ALTER TABLE user_games ADD COLUMN playing INTEGER NOT NULL DEFAULT 0");
+  const userCols = new Set((await client.execute("PRAGMA table_info(users)")).rows.map((c) => String(c.name)));
+  if (!userCols.has("google_sub")) await client.execute("ALTER TABLE users ADD COLUMN google_sub TEXT");
+  if (!userCols.has("email")) await client.execute("ALTER TABLE users ADD COLUMN email TEXT");
+  await client.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL");
   const { rows } = await client.execute("SELECT COUNT(*) AS n FROM games");
   if (Number(rows[0].n) === 0) {
     // all seed statements use fixed ids + INSERT OR IGNORE, so concurrent cold starts are harmless

@@ -32,7 +32,8 @@ export async function login(_: FormState, f: FormData): Promise<FormState> {
   const row = await db.prepare("SELECT id, password_hash FROM users WHERE username = ?").get(username) as
     | { id: number; password_hash: string }
     | undefined;
-  if (!row || !(await bcrypt.compare(str(f, "password"), row.password_hash)))
+  // Google-only accounts store "!google" instead of a hash and can't log in with a password.
+  if (!row || row.password_hash.startsWith("!") || !(await bcrypt.compare(str(f, "password"), row.password_hash)))
     return { error: "Benutzername oder Passwort stimmt nicht." };
   await startSession(row.id);
   const next = str(f, "next");
