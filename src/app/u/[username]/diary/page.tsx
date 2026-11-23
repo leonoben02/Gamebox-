@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlatformBadge } from "@/components/PlatformBadges";
 import { notFound } from "next/navigation";
 import { diaryYears, getUserByUsername, userDiary } from "@/lib/queries";
 import { GameCover } from "@/components/GameCover";
@@ -48,7 +49,12 @@ export default async function DiaryPage({ params, searchParams }: PageProps<"/u/
                       <span className="text-faint">{e.game.year}</span>
                       <div className="text-xs text-faint">
                         {STATUS_LABELS[e.status]}
-                        {e.platform && ` · ${e.platform}`}
+                        {e.platform && (
+                          <>
+                            {" "}
+                            <PlatformBadge platform={e.platform} />
+                          </>
+                        )}
                         {e.hours && ` · ${e.hours} h`}
                       </div>
                     </td>

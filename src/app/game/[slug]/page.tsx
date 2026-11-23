@@ -23,6 +23,7 @@ import { Avatar } from "@/components/Avatar";
 import { Heart, Histogram, Stars } from "@/components/Stars";
 import { countryName, formatDate, hueFor, roleLabel } from "@/lib/util";
 import { Tabs } from "@/components/Tabs";
+import { PlatformBadges } from "@/components/PlatformBadges";
 
 export async function generateMetadata({ params }: PageProps<"/game/[slug]">): Promise<Metadata> {
   const g = await getGameBySlug((await params).slug);
@@ -113,6 +114,7 @@ export default async function GamePage({ params }: PageProps<"/game/[slug]">) {
               )
             )}
           </p>
+          <PlatformBadges platforms={game.platforms} className="mt-4" />
           {game.summary && <p className="mt-5 max-w-prose leading-relaxed text-text/85">{game.summary}</p>}
           <div className="clear-both mt-5 md:hidden">{statsLine}</div>
           <div className="mt-6 md:hidden">{actions}</div>
@@ -160,7 +162,6 @@ export default async function GamePage({ params }: PageProps<"/game/[slug]">) {
                         ["Spielmodi", game.modes.split(",").join(", ")],
                         ["Perspektive", game.perspectives.split(",").join(", ")],
                         ["Engine", game.engines.split(",").join(", ")],
-                        ["Plattformen", game.platforms.split(",").join(", ")],
                       ] as [string, string][]
                     )
                       .filter(([, v]) => v)

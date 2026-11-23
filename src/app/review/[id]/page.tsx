@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlatformBadge } from "@/components/PlatformBadges";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getLog, logComments } from "@/lib/queries";
@@ -40,7 +41,7 @@ export default async function ReviewPage({ params }: PageProps<"/review/[id]">) 
           {r.liked ? <Heart className="!h-4 !w-4" /> : null}
           {r.replay ? <ReplayIcon /> : null}
           <span className="rounded bg-surface px-1.5 py-0.5 text-xs">{STATUS_LABELS[r.status]}</span>
-          {r.platform && <span>auf {r.platform}</span>}
+          {r.platform && <PlatformBadge platform={r.platform} />}
           {r.hours && <span>· {r.hours} h</span>}
           {r.played_on && <span>· gespielt am {formatDate(r.played_on)}</span>}
         </div>

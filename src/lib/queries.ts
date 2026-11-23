@@ -1,4 +1,5 @@
 import "server-only";
+import { rawNamesFor, type Family } from "./platforms";
 import { db } from "./db";
 
 export type Game = {
@@ -73,7 +74,7 @@ export async function searchLocalGames(q: string, limit = 40): Promise<Game[]> {
 
 export type BrowseSort = "popular" | "rating" | "newest" | "oldest" | "title";
 
-export async function browseGames(opts: { sort?: BrowseSort; genre?: string; limit?: number }): Promise<(Game & { players: number; avg: number | null })[]> {
+export async function browseGames(opts: { sort?: BrowseSort; genre?: string; platform?: Family; limit?: number }): Promise<(Game & { players: number; avg: number | null })[]> {
   const order = {
     popular: "players DESC, g.title",
     rating: "avg IS NULL, avg DESC, players DESC",
@@ -84,9 +85,17 @@ export async function browseGames(opts: { sort?: BrowseSort; genre?: string; lim
   const conds = [
     "(g.source = 'seed' OR EXISTS (SELECT 1 FROM user_games ug WHERE ug.game_id = g.id) OR EXISTS (SELECT 1 FROM list_items li WHERE li.game_id = g.id))",
   ];
-  if (opts.genre) conds.push("(',' || g.genres || ',') LIKE ?");
+  const params: unknown[] = [];
+  if (opts.genre) {
+    conds.push("(',' || g.genres || ',') LIKE ?");
+    params.push(`%,${opts.genre},%`);
+  }
+  if (opts.platform) {
+    const names = rawNamesFor(opts.platform);
+    conds.push(`(${names.map(() => "(',' || g.platforms || ',') LIKE ?").join(" OR ")})`);
+    params.push(...names.map((n) => `%,${n},%`));
+  }
   const where = `WHERE ${conds.join(" AND ")}`;
-  const params: unknown[] = opts.genre ? [`%,${opts.genre},%`] : [];
   return await db
     .prepare(
       `SELECT ${GAME_COLS},

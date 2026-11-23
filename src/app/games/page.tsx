@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { allGenres, browseGames, type BrowseSort } from "@/lib/queries";
 import { GameCover } from "@/components/GameCover";
 import { Stars } from "@/components/Stars";
+import { FamilyIcon } from "@/components/PlatformBadges";
+import { FAMILIES, type Family } from "@/lib/platforms";
 
 export const metadata: Metadata = { title: "Spiele" };
 
@@ -18,11 +20,12 @@ export default async function GamesPage({ searchParams }: PageProps<"/games">) {
   const sp = await searchParams;
   const sort = (SORTS.find(([k]) => k === sp.sort)?.[0] ?? "popular") as BrowseSort;
   const genre = typeof sp.genre === "string" ? sp.genre : undefined;
-  const games = await browseGames({ sort, genre });
+  const platform = FAMILIES.find((f) => f.key === sp.platform && f.key !== "other")?.key as Family | undefined;
+  const games = await browseGames({ sort, genre, platform });
   const genres = await allGenres();
   const qs = (p: Record<string, string | undefined>) => {
     const o = new URLSearchParams();
-    const merged = { sort, genre, ...p };
+    const merged = { sort, genre, platform, ...p };
     for (const [k, v] of Object.entries(merged)) if (v) o.set(k, v);
     return `?${o}`;
   };
@@ -36,12 +39,30 @@ export default async function GamesPage({ searchParams }: PageProps<"/games">) {
           </Link>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <Link href={qs({ genre: "" })} className={`rounded px-2 py-1 text-xs ${!genre ? "bg-lime text-[#151320]" : "bg-surface text-muted hover:text-text"}`}>
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+        {FAMILIES.filter((f) => f.key !== "other").map((f) => {
+          const on = platform === f.key;
+          return (
+            <Link
+              key={f.key}
+              href={qs({ platform: on ? "" : f.key })}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition ${on ? "text-text" : "border-line text-muted hover:text-text"}`}
+              style={on ? { borderColor: f.color, background: `${f.color}26` } : undefined}
+            >
+              <span style={{ color: f.color }}>
+                <FamilyIcon family={f.key} className="h-4 w-4" />
+              </span>
+              {f.label}
+            </Link>
+          );
+        })}
+      </div>
+      <div className="mt-3 -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+        <Link href={qs({ genre: "" })} className={`shrink-0 rounded px-2 py-1 text-xs ${!genre ? "bg-lime text-[#151320]" : "bg-surface text-muted hover:text-text"}`}>
           Alle Genres
         </Link>
         {genres.map((g) => (
-          <Link key={g} href={qs({ genre: g })} className={`rounded px-2 py-1 text-xs ${genre === g ? "bg-lime text-[#151320]" : "bg-surface text-muted hover:text-text"}`}>
+          <Link key={g} href={qs({ genre: g })} className={`shrink-0 rounded px-2 py-1 text-xs ${genre === g ? "bg-lime text-[#151320]" : "bg-surface text-muted hover:text-text"}`}>
             {g}
           </Link>
         ))}
