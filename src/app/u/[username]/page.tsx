@@ -7,7 +7,21 @@ import { Heart, Histogram, Stars } from "@/components/Stars";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ActivityRow } from "@/components/ActivityRow";
 
-export default async function ProfilePage({ params }: PageProps<"/u/[username]">) {
+export default async function ProfilePage(props: PageProps<"/u/[username]">) {
+  // Temporary: show the real error instead of Next's generic page while we chase a production-only crash.
+  try {
+    return await ProfileContent(props);
+  } catch (e) {
+    if (e && typeof e === "object" && "digest" in e && String((e as { digest: unknown }).digest).startsWith("NEXT_")) throw e;
+    return (
+      <p className="rounded-lg border border-coral/50 bg-coral/10 p-4 text-sm break-words">
+        <b>Fehler im Profil:</b> {e instanceof Error ? `${e.name}: ${e.message}` : String(e)}
+      </p>
+    );
+  }
+}
+
+async function ProfileContent({ params }: PageProps<"/u/[username]">) {
   const profile = await getUserByUsername((await params).username);
   if (!profile) notFound();
   const viewer = await getCurrentUser();

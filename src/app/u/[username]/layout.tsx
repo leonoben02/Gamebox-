@@ -7,7 +7,20 @@ import { Avatar } from "@/components/Avatar";
 import { ProfileTabs } from "@/components/ProfileTabs";
 import { ToggleButton } from "@/components/ToggleForm";
 
-export default async function ProfileLayout({ children, params }: LayoutProps<"/u/[username]">) {
+export default async function ProfileLayout(props: LayoutProps<"/u/[username]">) {
+  try {
+    return await ProfileShell(props);
+  } catch (e) {
+    if (e && typeof e === "object" && "digest" in e && String((e as { digest: unknown }).digest).startsWith("NEXT_")) throw e;
+    return (
+      <p className="rounded-lg border border-coral/50 bg-coral/10 p-4 text-sm break-words">
+        <b>Fehler im Profilkopf:</b> {e instanceof Error ? `${e.name}: ${e.message}` : String(e)}
+      </p>
+    );
+  }
+}
+
+async function ProfileShell({ children, params }: LayoutProps<"/u/[username]">) {
   const { username } = await params;
   const profile = await getUserByUsername(username);
   if (!profile) notFound();
