@@ -150,16 +150,24 @@ declare global {
 }
 
 /** Once per server process: fetch covers for catalogue games that don't have one yet (IGDB allows ~4 req/s). */
+/**
+ * Fills in covers for catalogue games that have none yet. Runs 4 lookups at a time (IGDB allows 4 requests
+ * per second) and returns a promise, so callers can hand it to `after()` and serverless hosts like Vercel
+ * keep the function alive until it is done.
+ */
 export async function syncMissingCovers() {
   if (!igdbEnabled || globalThis.__gameboxCoverSync || process.env.NEXT_PHASE === "phase-production-build") return;
   globalThis.__gameboxCoverSync = true;
-  const missing = await db.prepare("SELECT id, title FROM games WHERE cover_url IS NULL AND igdb_id IS NULL").all() as { id: number; title: string }[];
-  void (async () => {
-    for (const g of missing) {
-      await enrichGame(g.id, g.title);
-      await new Promise((r) => setTimeout(r, 300));
+  try {
+    const missing = (await db.prepare("SELECT id, title FROM games WHERE cover_url IS NULL AND igdb_id IS NULL").all()) as { id: number; title: string }[];
+    for (let i = 0; i < missing.length; i += 4) {
+      const started = Date.now();
+      await Promise.all(missing.slice(i, i + 4).map((g) => enrichGame(g.id, g.title)));
+      await new Promise((r) => setTimeout(r, Math.max(0, 1100 - (Date.now() - started))));
     }
-  })();
+  } finally {
+    globalThis.__gameboxCoverSync = false;
+  }
 }
 
 // ---------- studios & details ----------
