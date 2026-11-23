@@ -39,6 +39,29 @@ CREATE TABLE IF NOT EXISTS games (
   source TEXT NOT NULL DEFAULT 'seed', -- 'seed' or 'igdb' (imported by search)
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- Studios / companies (developer, publisher, porting, support), from IGDB
+CREATE TABLE IF NOT EXISTS companies (
+  id INTEGER PRIMARY KEY,
+  igdb_id INTEGER UNIQUE,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  logo_url TEXT,
+  description TEXT NOT NULL DEFAULT '',
+  country INTEGER,
+  founded INTEGER,
+  website TEXT,
+  synced_at TEXT -- when the full game list was imported
+);
+CREATE TABLE IF NOT EXISTS game_companies (
+  game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  developer INTEGER NOT NULL DEFAULT 0,
+  publisher INTEGER NOT NULL DEFAULT 0,
+  porting INTEGER NOT NULL DEFAULT 0,
+  supporting INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (game_id, company_id)
+);
+CREATE INDEX IF NOT EXISTS game_companies_company ON game_companies(company_id);
 -- Current relationship between a user and a game (played / liked / rating / backlog)
 CREATE TABLE IF NOT EXISTS user_games (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -167,8 +190,17 @@ async function open(): Promise<Client> {
   if (URL.startsWith("file:")) await client.execute("PRAGMA journal_mode = WAL");
   await client.executeMultiple(SCHEMA);
   // migration for databases created before the `source` column existed
-  const cols = await client.execute("PRAGMA table_info(games)");
-  if (!cols.rows.some((c) => c.name === "source")) await client.execute("ALTER TABLE games ADD COLUMN source TEXT NOT NULL DEFAULT 'seed'");
+  const cols = new Set((await client.execute("PRAGMA table_info(games)")).rows.map((c) => String(c.name)));
+  const add: [string, string][] = [
+    ["source", "TEXT NOT NULL DEFAULT 'seed'"],
+    ["engines", "TEXT NOT NULL DEFAULT ''"],
+    ["modes", "TEXT NOT NULL DEFAULT ''"],
+    ["perspectives", "TEXT NOT NULL DEFAULT ''"],
+    ["franchise", "TEXT NOT NULL DEFAULT ''"],
+    ["releases", "TEXT NOT NULL DEFAULT '[]'"], // JSON [{platform, date, human}]
+    ["details_synced_at", "TEXT"],
+  ];
+  for (const [name, type] of add) if (!cols.has(name)) await client.execute(`ALTER TABLE games ADD COLUMN ${name} ${type}`);
   const { rows } = await client.execute("SELECT COUNT(*) AS n FROM games");
   if (Number(rows[0].n) === 0) {
     // all seed statements use fixed ids + INSERT OR IGNORE, so concurrent cold starts are harmless
@@ -190,7 +222,12 @@ type Prepare = (sql: string) => ReturnType<typeof statement>;
 export const db: {
   prepare: Prepare;
   transaction<T>(fn: (tx: { prepare: Prepare }) => Promise<T>): Promise<T>;
+  batch(stmts: { sql: string; args: InArgs }[]): Promise<void>;
 } = {
+  /** Many writes in one round trip and one transaction (important for a remote Turso database). */
+  async batch(stmts) {
+    if (stmts.length) await (await client()).batch(stmts, "write");
+  },
   prepare: (sql: string) => statement(client, sql),
   /** Runs fn inside a write transaction; `tx.prepare` has the same API as `db.prepare`. */
   async transaction<T>(fn: (tx: { prepare: Prepare }) => Promise<T>): Promise<T> {

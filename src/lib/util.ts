@@ -51,3 +51,27 @@ export function hueFor(s: string): number {
   for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return h % 360;
 }
+
+// ISO 3166 numeric -> alpha-2 for the countries game studios most often come from (IGDB stores numeric codes).
+const ISO_NUM: Record<number, string> = {
+  36: "AU", 40: "AT", 56: "BE", 76: "BR", 124: "CA", 156: "CN", 203: "CZ", 208: "DK", 246: "FI", 250: "FR", 276: "DE",
+  348: "HU", 372: "IE", 376: "IL", 380: "IT", 392: "JP", 410: "KR", 484: "MX", 528: "NL", 554: "NZ", 578: "NO", 616: "PL",
+  620: "PT", 643: "RU", 702: "SG", 703: "SK", 724: "ES", 752: "SE", 756: "CH", 158: "TW", 792: "TR", 804: "UA", 826: "GB",
+  840: "US", 32: "AR", 152: "CL", 170: "CO", 710: "ZA", 356: "IN", 360: "ID", 458: "MY", 608: "PH", 764: "TH", 704: "VN",
+  112: "BY", 233: "EE", 428: "LV", 440: "LT", 642: "RO", 100: "BG", 191: "HR", 688: "RS", 705: "SI", 300: "GR", 352: "IS",
+};
+
+export function countryName(num: number | null | undefined): string {
+  if (!num || !ISO_NUM[num]) return "";
+  try {
+    return new Intl.DisplayNames(["de"], { type: "region" }).of(ISO_NUM[num]) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function roleLabel(r: { developer: number; publisher: number; porting: number; supporting: number }): string {
+  return [r.developer && "Entwickler", r.publisher && "Publisher", r.porting && "Portierung", r.supporting && "Unterstützung"]
+    .filter(Boolean)
+    .join(" · ");
+}

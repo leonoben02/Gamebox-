@@ -442,3 +442,88 @@ export async function friendsRecentLogs(userId: number, limit = 12) {
       .all({ userId, viewer: userId, limit }) as Record<string, unknown>[]
   ).map(toReview);
 }
+
+// ---------- studios ----------
+
+export type GameDetails = Game & {
+  engines: string;
+  modes: string;
+  perspectives: string;
+  franchise: string;
+  releases: string;
+  igdb_id: number | null;
+  details_synced_at: string | null;
+};
+
+export async function getGameDetails(slug: string): Promise<GameDetails | undefined> {
+  return (await db
+    .prepare(`SELECT ${GAME_COLS}, g.engines, g.modes, g.perspectives, g.franchise, g.releases, g.igdb_id, g.details_synced_at FROM games g WHERE slug = ?`)
+    .get(slug)) as GameDetails | undefined;
+}
+
+export type CompanyRole = { developer: number; publisher: number; porting: number; supporting: number };
+export type Company = {
+  id: number;
+  slug: string;
+  name: string;
+  logo_url: string | null;
+  description: string;
+  country: number | null;
+  founded: number | null;
+  website: string | null;
+  synced_at: string | null;
+};
+
+export async function gameCompanies(gameId: number) {
+  return (await db
+    .prepare(
+      `SELECT c.id, c.slug, c.name, c.logo_url, c.country, gc.developer, gc.publisher, gc.porting, gc.supporting
+       FROM game_companies gc JOIN companies c ON c.id = gc.company_id WHERE gc.game_id = ?
+       ORDER BY gc.developer DESC, gc.publisher DESC, gc.porting DESC, c.name`,
+    )
+    .all(gameId)) as (Pick<Company, "id" | "slug" | "name" | "logo_url" | "country"> & CompanyRole)[];
+}
+
+export async function getCompanyBySlug(slug: string): Promise<Company | undefined> {
+  return (await db.prepare("SELECT * FROM companies WHERE slug = ?").get(slug)) as Company | undefined;
+}
+
+export async function companyGames(companyId: number, role: "developer" | "publisher" | "all") {
+  const cond = role === "all" ? "1" : `gc.${role} = 1`;
+  return (await db
+    .prepare(
+      `SELECT ${GAME_COLS}, gc.developer, gc.publisher,
+        (SELECT COUNT(*) FROM user_games ug WHERE ug.game_id = g.id AND ug.played = 1) AS players
+       FROM game_companies gc JOIN games g ON g.id = gc.game_id
+       WHERE gc.company_id = ? AND ${cond} ORDER BY g.year IS NULL, g.year DESC, g.title`,
+    )
+    .all(companyId)) as (Game & { developer: number; publisher: number; players: number })[];
+}
+
+/** Rows for the home page. */
+export async function topRatedGames(limit = 12) {
+  return (await db
+    .prepare(
+      `SELECT ${GAME_COLS}, AVG(ug.rating) AS avg, COUNT(ug.rating) AS n FROM games g JOIN user_games ug ON ug.game_id = g.id AND ug.rating IS NOT NULL
+       GROUP BY g.id HAVING n >= 1 ORDER BY avg DESC, n DESC LIMIT ?`,
+    )
+    .all(limit)) as Game[];
+}
+
+export async function gamesByGenre(genre: string, limit = 12) {
+  return (await db
+    .prepare(
+      `SELECT ${GAME_COLS} FROM games g WHERE (',' || g.genres || ',') LIKE ? AND (g.source = 'seed' OR EXISTS (SELECT 1 FROM user_games ug WHERE ug.game_id = g.id))
+       ORDER BY (SELECT COUNT(*) FROM user_games ug WHERE ug.game_id = g.id) DESC LIMIT ?`,
+    )
+    .all(`%,${genre},%`, limit)) as Game[];
+}
+
+export async function classicGames(before = 2006, limit = 12) {
+  return (await db
+    .prepare(
+      `SELECT ${GAME_COLS} FROM games g WHERE g.year < ? AND (g.source = 'seed' OR EXISTS (SELECT 1 FROM user_games ug WHERE ug.game_id = g.id))
+       ORDER BY (SELECT AVG(rating) FROM user_games ug WHERE ug.game_id = g.id) DESC LIMIT ?`,
+    )
+    .all(before, limit)) as Game[];
+}

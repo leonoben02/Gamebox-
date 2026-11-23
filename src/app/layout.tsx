@@ -21,8 +21,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="de" className={`${body.variable} ${display.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
         <Header />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
-        <footer className="border-t border-line bg-bg-2">
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-28 md:pb-8">{children}</main>
+        <footer className="hidden border-t border-line bg-bg-2 md:block">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-6 text-sm text-faint">
             <Logo className="opacity-70" />
             <div className="flex gap-5">

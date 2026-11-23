@@ -5,11 +5,13 @@ import { logout } from "@/app/actions";
 import { Avatar } from "./Avatar";
 import { LogButton } from "./LogButton";
 import { Logo } from "./Logo";
+import { MobileNav } from "./MobileNav";
 
 export async function Header() {
   const user = await getCurrentUser();
   void syncMissingCovers().catch(() => {});
   return (
+    <>
     <header className="sticky top-0 z-30 border-b border-line/70 bg-bg/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-5 px-4 py-3">
         <Link href="/" aria-label="Gamebox Startseite">
@@ -35,8 +37,10 @@ export async function Header() {
           <input name="q" placeholder="Suchen…" className="field !w-44 !rounded-full !py-1.5 focus:!w-60 transition-all" />
         </form>
         {user ? (
-          <div className="flex items-center gap-3">
-            <LogButton />
+          <div className="ml-auto flex items-center gap-3 sm:ml-0">
+            <div className="hidden md:block">
+              <LogButton />
+            </div>
             <details className="relative">
               <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold">
                 <Avatar user={user} size={30} link={false} />
@@ -64,7 +68,7 @@ export async function Header() {
             </details>
           </div>
         ) : (
-          <div className="flex items-center gap-4 text-sm font-semibold uppercase tracking-wider">
+          <div className="ml-auto flex items-center gap-4 text-sm font-semibold uppercase tracking-wider sm:ml-0">
             <Link href="/login" className="text-muted hover:text-text">
               Anmelden
             </Link>
@@ -74,13 +78,8 @@ export async function Header() {
           </div>
         )}
       </div>
-      <nav className="flex gap-5 overflow-x-auto px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-muted md:hidden">
-        <Link href="/games">Spiele</Link>
-        <Link href="/lists">Listen</Link>
-        <Link href="/members">Mitglieder</Link>
-        {user && <Link href="/activity">Aktivität</Link>}
-        <Link href="/search">Suche</Link>
-      </nav>
     </header>
+    <MobileNav username={user?.username ?? null} />
+    </>
   );
 }
