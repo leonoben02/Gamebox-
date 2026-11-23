@@ -6,11 +6,11 @@ import { Heart, ReplayIcon, Stars } from "@/components/Stars";
 import { monthLabel, STATUS_LABELS } from "@/lib/util";
 
 export default async function DiaryPage({ params, searchParams }: PageProps<"/u/[username]/diary">) {
-  const profile = getUserByUsername((await params).username);
+  const profile = await getUserByUsername((await params).username);
   if (!profile) notFound();
   const y = Number((await searchParams).year) || undefined;
-  const entries = userDiary(profile.id, y);
-  const years = diaryYears(profile.id);
+  const entries = await userDiary(profile.id, y);
+  const years = await diaryYears(profile.id);
   const byMonth = new Map<string, typeof entries>();
   for (const e of entries) {
     const k = e.played_on!.slice(0, 7);

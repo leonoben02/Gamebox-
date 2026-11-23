@@ -6,7 +6,7 @@ import { ActivityRow } from "@/components/ActivityRow";
 export default async function ActivityPage({ searchParams }: PageProps<"/activity">) {
   const user = await requireUser();
   const mode = (await searchParams).mode === "me" ? "me" : "friends";
-  const feed = activityFeed({ userIds: mode === "me" ? [user.id] : followingIds(user.id), limit: 100 });
+  const feed = await activityFeed({ userIds: mode === "me" ? [user.id] : await followingIds(user.id), limit: 100 });
   return (
     <div className="max-w-3xl">
       <h1 className="font-display text-3xl font-bold">Aktivität</h1>

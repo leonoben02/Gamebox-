@@ -3,9 +3,9 @@ import { getUserByUsername, userGames } from "@/lib/queries";
 import { GameGrid } from "@/components/GameGrid";
 
 export default async function BacklogPage({ params }: PageProps<"/u/[username]/backlog">) {
-  const profile = getUserByUsername((await params).username);
+  const profile = await getUserByUsername((await params).username);
   if (!profile) notFound();
-  const games = userGames(profile.id, "backlog", "recent");
+  const games = await userGames(profile.id, "backlog", "recent");
   return (
     <div>
       <p className="mb-4 text-sm text-muted">

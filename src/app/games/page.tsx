@@ -18,8 +18,8 @@ export default async function GamesPage({ searchParams }: PageProps<"/games">) {
   const sp = await searchParams;
   const sort = (SORTS.find(([k]) => k === sp.sort)?.[0] ?? "popular") as BrowseSort;
   const genre = typeof sp.genre === "string" ? sp.genre : undefined;
-  const games = browseGames({ sort, genre });
-  const genres = allGenres();
+  const games = await browseGames({ sort, genre });
+  const genres = await allGenres();
   const qs = (p: Record<string, string | undefined>) => {
     const o = new URLSearchParams();
     const merged = { sort, genre, ...p };

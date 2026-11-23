@@ -8,10 +8,10 @@ import { ReviewCard } from "@/components/ReviewCard";
 export default async function GameReviews({ params, searchParams }: PageProps<"/game/[slug]/reviews">) {
   const { slug } = await params;
   const sort = (await searchParams).sort === "recent" ? "recent" : "popular";
-  const game = getGameBySlug(slug);
+  const game = await getGameBySlug(slug);
   if (!game) notFound();
   const user = await getCurrentUser();
-  const reviews = gameReviews(game.id, user?.id ?? 0, sort, 200);
+  const reviews = await gameReviews(game.id, user?.id ?? 0, sort, 200);
   return (
     <div className="grid gap-8 md:grid-cols-[150px_1fr]">
       <GameCover game={game} size="lg" />

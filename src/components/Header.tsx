@@ -8,7 +8,7 @@ import { Logo } from "./Logo";
 
 export async function Header() {
   const user = await getCurrentUser();
-  syncMissingCovers();
+  void syncMissingCovers().catch(() => {});
   return (
     <header className="sticky top-0 z-30 border-b border-line/70 bg-bg/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-5 px-4 py-3">

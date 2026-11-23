@@ -1,9 +1,14 @@
-import Database from "better-sqlite3";
+import { createClient, type Client, type InArgs, type Transaction } from "@libsql/client";
 import fs from "node:fs";
 import path from "node:path";
-import { seedDatabase } from "./seed";
+import { seedStatements } from "./seed";
 
-const DB_PATH = process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "gamebox.db");
+/**
+ * Database: libSQL. Locally a SQLite file (./data/gamebox.db); in production a Turso database
+ * (set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN). The small wrapper below keeps a
+ * small prepare()-style API (prepare().get/all/run), but every call is async.
+ */
+const URL = process.env.TURSO_DATABASE_URL ?? `file:${process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "gamebox.db")}`;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -31,6 +36,7 @@ CREATE TABLE IF NOT EXISTS games (
   summary TEXT NOT NULL DEFAULT '',
   cover_url TEXT,
   igdb_id INTEGER UNIQUE,
+  source TEXT NOT NULL DEFAULT 'seed', -- 'seed' or 'igdb' (imported by search)
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 -- Current relationship between a user and a game (played / liked / rating / backlog)
@@ -120,26 +126,84 @@ CREATE TABLE IF NOT EXISTS activity (
 CREATE INDEX IF NOT EXISTS activity_user ON activity(user_id, created_at);
 `;
 
+type Args = unknown[];
+type Executor = Pick<Client, "execute"> | Transaction;
+
+export type RunResult = { changes: number; lastInsertRowid: number };
+
+function toArgs(args: Args): InArgs {
+  // a single plain object = named parameters (@name), otherwise positional (?)
+  if (args.length === 1 && args[0] !== null && typeof args[0] === "object" && !Array.isArray(args[0])) return args[0] as InArgs;
+  return args as InArgs;
+}
+
+function statement(exec: () => Promise<Executor>, sql: string) {
+  const run = async (args: Args) => (await exec()).execute({ sql, args: toArgs(args) });
+  const plain = (r: Awaited<ReturnType<typeof run>>) =>
+    r.rows.map((row) => Object.fromEntries(r.columns.map((c, i) => [c, row[i]])));
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async get(...args: Args): Promise<any> {
+      return plain(await run(args))[0];
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async all(...args: Args): Promise<any[]> {
+      return plain(await run(args));
+    },
+    async run(...args: Args): Promise<RunResult> {
+      const r = await run(args);
+      return { changes: r.rowsAffected, lastInsertRowid: Number(r.lastInsertRowid ?? 0) };
+    },
+  };
+}
+
 declare global {
-  var __gameboxDb: Database.Database | undefined;
+  var __gameboxDb: Promise<Client> | undefined;
 }
 
-function open(): Database.Database {
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  const db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  db.exec(SCHEMA);
-  db.pragma("busy_timeout = 5000");
-  // migration: games imported by search stay out of "browse" until someone interacts with them
-  const cols = db.prepare("PRAGMA table_info(games)").all() as { name: string }[];
-  if (!cols.some((c) => c.name === "source")) db.exec("ALTER TABLE games ADD COLUMN source TEXT NOT NULL DEFAULT 'seed'");
-  // Seed once, inside a write transaction so parallel build workers don't seed twice.
-  db.transaction(() => {
-    const { n } = db.prepare("SELECT COUNT(*) AS n FROM games").get() as { n: number };
-    if (n === 0) seedDatabase(db, process.env.SEED_DEMO_USERS !== "false");
-  }).immediate();
-  return db;
+async function open(): Promise<Client> {
+  if (URL.startsWith("file:")) fs.mkdirSync(path.dirname(URL.slice(5)), { recursive: true });
+  const client = createClient({ url: URL, authToken: process.env.TURSO_AUTH_TOKEN });
+  if (URL.startsWith("file:")) await client.execute("PRAGMA journal_mode = WAL");
+  await client.executeMultiple(SCHEMA);
+  // migration for databases created before the `source` column existed
+  const cols = await client.execute("PRAGMA table_info(games)");
+  if (!cols.rows.some((c) => c.name === "source")) await client.execute("ALTER TABLE games ADD COLUMN source TEXT NOT NULL DEFAULT 'seed'");
+  const { rows } = await client.execute("SELECT COUNT(*) AS n FROM games");
+  if (Number(rows[0].n) === 0) {
+    // all seed statements use fixed ids + INSERT OR IGNORE, so concurrent cold starts are harmless
+    await client.batch(seedStatements(process.env.SEED_DEMO_USERS !== "false"), "write");
+  }
+  return client;
 }
 
-export const db: Database.Database = globalThis.__gameboxDb ?? (globalThis.__gameboxDb = open());
+function client(): Promise<Client> {
+  if (!globalThis.__gameboxDb) {
+    globalThis.__gameboxDb = open();
+    globalThis.__gameboxDb.catch(() => (globalThis.__gameboxDb = undefined));
+  }
+  return globalThis.__gameboxDb;
+}
+
+type Prepare = (sql: string) => ReturnType<typeof statement>;
+
+export const db: {
+  prepare: Prepare;
+  transaction<T>(fn: (tx: { prepare: Prepare }) => Promise<T>): Promise<T>;
+} = {
+  prepare: (sql: string) => statement(client, sql),
+  /** Runs fn inside a write transaction; `tx.prepare` has the same API as `db.prepare`. */
+  async transaction<T>(fn: (tx: { prepare: Prepare }) => Promise<T>): Promise<T> {
+    const t = await (await client()).transaction("write");
+    try {
+      const out = await fn({ prepare: (sql: string) => statement(async () => t, sql) });
+      await t.commit();
+      return out;
+    } catch (e) {
+      await t.rollback().catch(() => {});
+      throw e;
+    } finally {
+      t.close();
+    }
+  },
+};

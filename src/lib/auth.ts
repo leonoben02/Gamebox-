@@ -19,7 +19,7 @@ export type User = {
 export async function getCurrentUser(): Promise<User | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
-  const row = db
+  const row = await db
     .prepare(
       `SELECT u.id, u.username, u.display_name, u.bio, u.avatar_hue, u.created_at
        FROM sessions s JOIN users u ON u.id = s.user_id
@@ -37,7 +37,7 @@ export async function requireUser(): Promise<User> {
 
 export async function startSession(userId: number) {
   const token = crypto.randomBytes(32).toString("hex");
-  db.prepare(`INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, datetime('now', '+${MAX_AGE_DAYS} days'))`).run(
+  await db.prepare(`INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, datetime('now', '+${MAX_AGE_DAYS} days'))`).run(
     token,
     userId,
   );
@@ -53,6 +53,6 @@ export async function startSession(userId: number) {
 export async function endSession() {
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
-  if (token) db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+  if (token) await db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
   jar.delete(COOKIE);
 }

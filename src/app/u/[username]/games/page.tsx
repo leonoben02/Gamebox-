@@ -4,11 +4,11 @@ import { getUserByUsername, userGames } from "@/lib/queries";
 import { GameGrid } from "@/components/GameGrid";
 
 export default async function UserGamesPage({ params, searchParams }: PageProps<"/u/[username]/games">) {
-  const profile = getUserByUsername((await params).username);
+  const profile = await getUserByUsername((await params).username);
   if (!profile) notFound();
   const s = (await searchParams).sort;
   const sort = s === "rating" || s === "title" ? s : "recent";
-  const games = userGames(profile.id, "played", sort);
+  const games = await userGames(profile.id, "played", sort);
   return (
     <div>
       <div className="mb-4 flex items-center justify-between text-sm text-muted">

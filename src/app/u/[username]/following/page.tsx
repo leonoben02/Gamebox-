@@ -4,9 +4,9 @@ import { followList, getUserByUsername } from "@/lib/queries";
 import { Avatar } from "@/components/Avatar";
 
 export default async function Page({ params }: PageProps<"/u/[username]/following">) {
-  const profile = getUserByUsername((await params).username);
+  const profile = await getUserByUsername((await params).username);
   if (!profile) notFound();
-  const people = followList(profile.id, "following");
+  const people = await followList(profile.id, "following");
   return (
     <div className="max-w-2xl">
       <h2 className="section-title">Folgt</h2>

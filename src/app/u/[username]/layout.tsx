@@ -9,10 +9,10 @@ import { ToggleButton } from "@/components/ToggleForm";
 
 export default async function ProfileLayout({ children, params }: LayoutProps<"/u/[username]">) {
   const { username } = await params;
-  const profile = getUserByUsername(username);
+  const profile = await getUserByUsername(username);
   if (!profile) notFound();
   const viewer = await getCurrentUser();
-  const stats = profileStats(profile.id);
+  const stats = await profileStats(profile.id);
   const isMe = viewer?.id === profile.id;
   const base = `/u/${profile.username}`;
 
@@ -35,7 +35,7 @@ export default async function ProfileLayout({ children, params }: LayoutProps<"/
                 Profil bearbeiten
               </Link>
             ) : viewer ? (
-              <ToggleButton on={isFollowing(viewer.id, profile.id)} action={toggleFollow.bind(null, profile.id)} onLabel="Folge ich" offLabel="Folgen" className="text-xs uppercase tracking-wider" />
+              <ToggleButton on={await isFollowing(viewer.id, profile.id)} action={toggleFollow.bind(null, profile.id)} onLabel="Folge ich" offLabel="Folgen" className="text-xs uppercase tracking-wider" />
             ) : null}
           </div>
           <p className="text-sm text-faint">@{profile.username}</p>

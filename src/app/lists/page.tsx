@@ -5,8 +5,8 @@ import { ListCard } from "@/components/ListCard";
 
 export const metadata: Metadata = { title: "Listen" };
 
-export default function ListsPage() {
-  const lists = popularLists(48);
+export default async function ListsPage() {
+  const lists = await popularLists(48);
   return (
     <div>
       <div className="mb-8 text-center">

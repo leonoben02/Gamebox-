@@ -22,24 +22,24 @@ import { Heart, Histogram, Stars } from "@/components/Stars";
 import { hueFor } from "@/lib/util";
 
 export async function generateMetadata({ params }: PageProps<"/game/[slug]">): Promise<Metadata> {
-  const g = getGameBySlug((await params).slug);
+  const g = await getGameBySlug((await params).slug);
   return { title: g ? `${g.title}${g.year ? ` (${g.year})` : ""}` : "Spiel" };
 }
 
 export default async function GamePage({ params }: PageProps<"/game/[slug]">) {
   const { slug } = await params;
-  let game = getGameBySlug(slug);
+  let game = await getGameBySlug(slug);
   if (!game) notFound();
   if (!game.cover_url) {
     await enrichGame(game.id, game.title);
-    game = getGameBySlug(slug)!;
+    game = (await getGameBySlug(slug))!;
   }
   const user = await getCurrentUser();
-  const stats = gameStats(game.id);
-  const friends = user ? friendsOnGame(user.id, game.id) : [];
-  const friendReviews = user ? gameReviews(game.id, user.id, "recent", 4, followingIds(user.id)) : [];
-  const popular = gameReviews(game.id, user?.id ?? 0, "popular", 8).filter((r) => !friendReviews.some((f) => f.id === r.id));
-  const lists = listsWithGame(game.id, 3);
+  const stats = await gameStats(game.id);
+  const friends = user ? await friendsOnGame(user.id, game.id) : [];
+  const friendReviews = user ? await gameReviews(game.id, user.id, "recent", 4, await followingIds(user.id)) : [];
+  const popular = (await gameReviews(game.id, user?.id ?? 0, "popular", 8)).filter((r) => !friendReviews.some((f) => f.id === r.id));
+  const lists = await listsWithGame(game.id, 3);
   const hue = hueFor(game.title);
 
   return (
@@ -137,7 +137,7 @@ export default async function GamePage({ params }: PageProps<"/game/[slug]">) {
         </div>
 
         <aside className="order-2 space-y-8 md:order-none md:pt-24">
-          <GameActions game={game} state={user ? getUserGame(user.id, game.id) : { played: 0, liked: 0, rating: null, backlog: 0 }} lists={user ? myListsForGame(user.id, game.id) : []} loggedIn={Boolean(user)} />
+          <GameActions game={game} state={user ? await getUserGame(user.id, game.id) : { played: 0, liked: 0, rating: null, backlog: 0 }} lists={user ? await myListsForGame(user.id, game.id) : []} loggedIn={Boolean(user)} />
           <section>
             <h2 className="section-title">
               Bewertungen <span className="normal-case tracking-normal">{stats.ratings}</span>

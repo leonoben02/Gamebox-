@@ -9,12 +9,12 @@ import { Heart, Stars } from "@/components/Stars";
 
 export default async function Home() {
   const user = await getCurrentUser();
-  let trending = trendingGames(30, 12);
-  if (trending.length < 6) trending = browseGames({ sort: "popular", limit: 12 });
-  const reviews = popularReviews(user?.id ?? 0, 365, 6);
-  const lists = popularLists(3);
-  const members = popularMembers(5);
-  const friends = user ? friendsRecentLogs(user.id, 6) : [];
+  let trending = await trendingGames(30, 12);
+  if (trending.length < 6) trending = await browseGames({ sort: "popular", limit: 12 });
+  const reviews = await popularReviews(user?.id ?? 0, 365, 6);
+  const lists = await popularLists(3);
+  const members = await popularMembers(5);
+  const friends = user ? await friendsRecentLogs(user.id, 6) : [];
 
   return (
     <div className="space-y-14">

@@ -7,7 +7,7 @@ export default async function SettingsPage() {
   return (
     <div className="max-w-xl">
       <h1 className="mb-6 font-display text-3xl font-bold">Einstellungen</h1>
-      <SettingsForm user={user} favorites={favoriteGames(user.id)} />
+      <SettingsForm user={user} favorites={await favoriteGames(user.id)} />
     </div>
   );
 }

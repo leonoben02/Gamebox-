@@ -14,9 +14,9 @@ import { formatDate, STATUS_LABELS, timeAgo } from "@/lib/util";
 export default async function ReviewPage({ params }: PageProps<"/review/[id]">) {
   const id = Number((await params).id);
   const user = await getCurrentUser();
-  const r = getLog(id, user?.id ?? 0);
+  const r = await getLog(id, user?.id ?? 0);
   if (!r) notFound();
-  const comments = logComments(id);
+  const comments = await logComments(id);
   const mine = user?.id === r.user_id;
 
   return (

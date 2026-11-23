@@ -8,17 +8,17 @@ import { ReviewCard } from "@/components/ReviewCard";
 import { ActivityRow } from "@/components/ActivityRow";
 
 export default async function ProfilePage({ params }: PageProps<"/u/[username]">) {
-  const profile = getUserByUsername((await params).username);
+  const profile = await getUserByUsername((await params).username);
   if (!profile) notFound();
   const viewer = await getCurrentUser();
-  const favs = favoriteGames(profile.id);
-  const recent = userGames(profile.id, "played", "recent").slice(0, 4);
-  const reviews = userReviews(profile.id, viewer?.id ?? 0, 3);
-  const diary = userDiary(profile.id).slice(0, 8);
-  const backlog = userGames(profile.id, "backlog", "recent");
-  const hist = userRatingHistogram(profile.id);
-  const stats = profileStats(profile.id);
-  const activity = activityFeed({ userIds: [profile.id], limit: 8 });
+  const favs = await favoriteGames(profile.id);
+  const recent = (await userGames(profile.id, "played", "recent")).slice(0, 4);
+  const reviews = await userReviews(profile.id, viewer?.id ?? 0, 3);
+  const diary = (await userDiary(profile.id)).slice(0, 8);
+  const backlog = await userGames(profile.id, "backlog", "recent");
+  const hist = await userRatingHistogram(profile.id);
+  const stats = await profileStats(profile.id);
+  const activity = await activityFeed({ userIds: [profile.id], limit: 8 });
   const base = `/u/${profile.username}`;
   const isMe = viewer?.id === profile.id;
 

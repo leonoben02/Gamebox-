@@ -7,12 +7,12 @@ import { Avatar } from "@/components/Avatar";
 
 export default async function SearchPage({ searchParams }: PageProps<"/search">) {
   const q = String((await searchParams).q ?? "").trim();
-  let games = q ? searchLocalGames(q) : [];
+  let games = q ? await searchLocalGames(q) : [];
   let remoteError = false;
   if (q && igdbEnabled) {
     try {
       const ids = await searchIgdb(q);
-      const remote = getGamesByIds(ids);
+      const remote = await getGamesByIds(ids);
       const seen = new Set(remote.map((g) => g.id));
       games = [...remote, ...games.filter((g) => !seen.has(g.id))];
     } catch (e) {
@@ -21,7 +21,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
     }
   }
   const users = q
-    ? (db
+    ? (await db
         .prepare("SELECT id, username, display_name, avatar_hue FROM users WHERE username LIKE ? OR display_name LIKE ? LIMIT 10")
         .all(`%${q}%`, `%${q}%`) as { id: number; username: string; display_name: string; avatar_hue: number }[])
     : [];

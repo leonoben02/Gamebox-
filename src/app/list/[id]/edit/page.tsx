@@ -8,7 +8,7 @@ import { ListForm } from "@/components/ListForm";
 export default async function EditListPage({ params }: PageProps<"/list/[id]/edit">) {
   const user = await requireUser();
   const id = Number((await params).id);
-  const list = getList(id);
+  const list = await getList(id);
   if (!list || list.user.id !== user.id) notFound();
   return (
     <div className="max-w-xl">

@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { InStatement } from "@libsql/client";
 import bcrypt from "bcryptjs";
 import { slugify } from "./util";
 
@@ -64,14 +64,24 @@ function hash(s: string) {
   return h;
 }
 
-export function seedDatabase(db: Database.Database, withDemoUsers: boolean) {
-  const insertGame = db.prepare(
-    "INSERT OR IGNORE INTO games (slug, title, year, developer, genres, platforms, summary) VALUES (?, ?, ?, ?, ?, ?, ?)",
-  );
-  for (const [title, year, developer, genres, platforms, summary] of SEED_GAMES) {
-    insertGame.run(slugify(title), title, year, developer, genres, platforms, summary);
-  }
-  if (withDemoUsers) seedDemoUsers(db);
+/**
+ * All seed data as one batch of statements with fixed ids and INSERT OR IGNORE, so it can run in a
+ * single round trip (important for a remote Turso database) and is safe if two cold starts race.
+ */
+export function seedStatements(withDemoUsers: boolean): InStatement[] {
+  const out: InStatement[] = [];
+  const st = (sql: string, ...args: (string | number | null)[]) => out.push({ sql, args });
+  const slugToId = new Map<string, number>();
+  SEED_GAMES.forEach(([title, year, developer, genres, platforms, summary], i) => {
+    const id = i + 1;
+    slugToId.set(slugify(title), id);
+    st(
+      "INSERT OR IGNORE INTO games (id, slug, title, year, developer, genres, platforms, summary) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      id, slugify(title), title, year, developer, genres, platforms, summary,
+    );
+  });
+  if (withDemoUsers) demoUserStatements(st, [...slugToId.values()], slugToId);
+  return out;
 }
 
 const DEMO_USERS = [
@@ -100,22 +110,26 @@ const DEMO_REVIEWS = {
   ],
 };
 
-function seedDemoUsers(db: Database.Database) {
+function demoUserStatements(
+  st: (sql: string, ...args: (string | number | null)[]) => void,
+  gameIds: number[],
+  slugToId: Map<string, number>,
+) {
   const pw = bcrypt.hashSync("gamebox-demo", 10);
-  const games = db.prepare("SELECT id FROM games ORDER BY id").all() as { id: number }[];
-  const ids: number[] = [];
-  for (const u of DEMO_USERS) {
-    const r = db
-      .prepare("INSERT INTO users (username, display_name, password_hash, bio, avatar_hue) VALUES (?, ?, ?, ?, ?)")
-      .run(u.username, u.name, pw, u.bio, u.hue);
-    ids.push(Number(r.lastInsertRowid));
-  }
+  const ids = DEMO_USERS.map((_, i) => i + 1);
+  DEMO_USERS.forEach((u, i) =>
+    st("INSERT OR IGNORE INTO users (id, username, display_name, password_hash, bio, avatar_hue) VALUES (?, ?, ?, ?, ?, ?)", ids[i], u.username, u.name, pw, u.bio, u.hue),
+  );
   const today = new Date();
+  let logId = 0;
+  let activityId = 0;
+  const reviews: { id: number; user: number }[] = [];
   for (const [ui, userId] of ids.entries()) {
     // each demo user plays a deterministic pseudo-random subset of games
-    const picks = games.filter((g) => hash(`${userId}-${g.id}`) % 3 === 0);
+    const picks = gameIds.filter((g) => hash(`${userId}-${g}`) % 3 === 0);
+    const rated: { game: number; rating: number }[] = [];
     picks.forEach((g, i) => {
-      const h = hash(`${ui}:${g.id}`);
+      const h = hash(`${ui}:${g}`);
       const rating = 4 + (h % 7); // 2–5 stars
       const liked = rating >= 9 ? 1 : 0;
       const daysAgo = (i * 9 + (h % 7)) % 360;
@@ -124,40 +138,27 @@ function seedDemoUsers(db: Database.Database) {
       const review = (h >>> 3) % 3 === 0 ? pool[(h >>> 5) % pool.length] : null;
       const status = rating <= 5 && h % 2 ? "abandoned" : ["played", "completed", "completed", "mastered"][(h >>> 7) % 4];
       const created = `${d} 1${h % 10}:00:00`;
-      const r = db
-        .prepare(
-          "INSERT INTO logs (user_id, game_id, played_on, rating, liked, review, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .run(userId, g.id, d, rating, liked, review, status, created);
-      db.prepare(
-        "INSERT INTO user_games (user_id, game_id, played, liked, rating, updated_at) VALUES (?, ?, 1, ?, ?, ?)",
-      ).run(userId, g.id, liked, rating, created);
-      db.prepare("INSERT INTO activity (user_id, type, game_id, log_id, created_at) VALUES (?, ?, ?, ?, ?)").run(
-        userId,
-        review ? "review" : "log",
-        g.id,
-        r.lastInsertRowid,
-        created,
+      const id = ++logId;
+      st(
+        "INSERT OR IGNORE INTO logs (id, user_id, game_id, played_on, rating, liked, review, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        id, userId, g, d, rating, liked, review, status, created,
       );
+      st("INSERT OR IGNORE INTO user_games (user_id, game_id, played, liked, rating, updated_at) VALUES (?, ?, 1, ?, ?, ?)", userId, g, liked, rating, created);
+      st("INSERT OR IGNORE INTO activity (id, user_id, type, game_id, log_id, created_at) VALUES (?, ?, ?, ?, ?, ?)", ++activityId, userId, review ? "review" : "log", g, id, created);
+      if (review) reviews.push({ id, user: userId });
+      rated.push({ game: g, rating });
     });
     // backlog
-    games
-      .filter((g) => hash(`b${userId}-${g.id}`) % 7 === 0)
-      .forEach((g) =>
-        db
-          .prepare(
-            "INSERT INTO user_games (user_id, game_id, backlog) VALUES (?, ?, 1) ON CONFLICT DO NOTHING",
-          )
-          .run(userId, g.id),
-      );
+    for (const g of gameIds.filter((g) => hash(`b${userId}-${g}`) % 7 === 0))
+      st("INSERT OR IGNORE INTO user_games (user_id, game_id, backlog) VALUES (?, ?, 1)", userId, g);
     // favourites: top four rated
-    const favs = db
-      .prepare("SELECT game_id FROM user_games WHERE user_id = ? AND rating IS NOT NULL ORDER BY rating DESC, game_id LIMIT 4")
-      .all(userId) as { game_id: number }[];
-    favs.forEach((f, i) => db.prepare("INSERT INTO favorites (user_id, game_id, position) VALUES (?, ?, ?)").run(userId, f.game_id, i));
+    rated
+      .sort((a, b) => b.rating - a.rating || a.game - b.game)
+      .slice(0, 4)
+      .forEach((f, i) => st("INSERT OR IGNORE INTO favorites (user_id, game_id, position) VALUES (?, ?, ?)", userId, f.game, i));
   }
   // everyone follows everyone
-  for (const a of ids) for (const b of ids) if (a !== b) db.prepare("INSERT INTO follows (follower_id, followee_id) VALUES (?, ?)").run(a, b);
+  for (const a of ids) for (const b of ids) if (a !== b) st("INSERT OR IGNORE INTO follows (follower_id, followee_id) VALUES (?, ?)", a, b);
 
   // a couple of lists
   const listDefs: [number, string, string, number, string[]][] = [
@@ -165,20 +166,14 @@ function seedDemoUsers(db: Database.Database) {
     [ids[2], "Indies für einen Abend", "Kurz, perfekt, kein Backlog-Schuldgefühl.", 0, ["inside", "journey", "return-of-the-obra-dinn", "celeste", "undertale", "lethal-company"]],
     [ids[1], "JRPG-Grundkurs", "Wo man anfangen sollte.", 1, ["chrono-trigger", "final-fantasy-vii", "persona-5-royal", "kingdom-hearts-ii", "clair-obscur-expedition-33"]],
   ];
-  for (const [userId, title, desc, ranked, slugs] of listDefs) {
-    const r = db.prepare("INSERT INTO lists (user_id, title, description, ranked) VALUES (?, ?, ?, ?)").run(userId, title, desc, ranked);
-    slugs.forEach((s, i) =>
-      db
-        .prepare("INSERT INTO list_items (list_id, game_id, position) SELECT ?, id, ? FROM games WHERE slug = ?")
-        .run(r.lastInsertRowid, i, s),
-    );
-    db.prepare("INSERT INTO activity (user_id, type, list_id) VALUES (?, 'list', ?)").run(userId, r.lastInsertRowid);
-    for (const other of ids) if (other !== userId) db.prepare("INSERT INTO list_likes (user_id, list_id) VALUES (?, ?)").run(other, r.lastInsertRowid);
-  }
+  listDefs.forEach(([userId, title, desc, ranked, slugs], li) => {
+    const listId = li + 1;
+    st("INSERT OR IGNORE INTO lists (id, user_id, title, description, ranked) VALUES (?, ?, ?, ?, ?)", listId, userId, title, desc, ranked);
+    slugs.forEach((s, i) => st("INSERT OR IGNORE INTO list_items (list_id, game_id, position) VALUES (?, ?, ?)", listId, slugToId.get(s)!, i));
+    st("INSERT OR IGNORE INTO activity (id, user_id, type, list_id) VALUES (?, ?, 'list', ?)", ++activityId, userId, listId);
+    for (const other of ids) if (other !== userId) st("INSERT OR IGNORE INTO list_likes (user_id, list_id) VALUES (?, ?)", other, listId);
+  });
   // some review likes
-  const reviews = db.prepare("SELECT id, user_id FROM logs WHERE review IS NOT NULL").all() as { id: number; user_id: number }[];
   for (const rv of reviews)
-    for (const u of ids)
-      if (u !== rv.user_id && hash(`${u}~${rv.id}`) % 2 === 0)
-        db.prepare("INSERT INTO review_likes (user_id, log_id) VALUES (?, ?)").run(u, rv.id);
+    for (const u of ids) if (u !== rv.user && hash(`${u}~${rv.id}`) % 2 === 0) st("INSERT OR IGNORE INTO review_likes (user_id, log_id) VALUES (?, ?)", u, rv.id);
 }

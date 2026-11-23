@@ -5,10 +5,10 @@ import { getUserByUsername, userLists } from "@/lib/queries";
 import { ListCard } from "@/components/ListCard";
 
 export default async function UserListsPage({ params }: PageProps<"/u/[username]/lists">) {
-  const profile = getUserByUsername((await params).username);
+  const profile = await getUserByUsername((await params).username);
   if (!profile) notFound();
   const viewer = await getCurrentUser();
-  const lists = userLists(profile.id);
+  const lists = await userLists(profile.id);
   return (
     <div>
       {viewer?.id === profile.id && (

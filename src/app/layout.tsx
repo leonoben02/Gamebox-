@@ -8,6 +8,9 @@ import "./globals.css";
 const body = Inter({ variable: "--font-body", subsets: ["latin"] });
 const display = Space_Grotesk({ variable: "--font-display", subsets: ["latin"], weight: ["500", "600", "700"] });
 
+// Every page reads the session cookie and the database, so never prerender at build time.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: { default: "Gamebox – Dein Spiele-Tagebuch", template: "%s · Gamebox" },
   description: "Logge die Spiele, die du spielst. Bewerte, schreib Reviews, führe deinen Backlog und entdecke, was deine Freunde zocken.",

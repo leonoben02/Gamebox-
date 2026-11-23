@@ -11,7 +11,7 @@ import { timeAgo } from "@/lib/util";
 
 export default async function ListPage({ params }: PageProps<"/list/[id]">) {
   const id = Number((await params).id);
-  const list = getList(id);
+  const list = await getList(id);
   if (!list) notFound();
   const viewer = await getCurrentUser();
   const mine = viewer?.id === list.user.id;
@@ -30,7 +30,7 @@ export default async function ListPage({ params }: PageProps<"/list/[id]">) {
       {list.description && <p className="mt-3 max-w-2xl whitespace-pre-line text-muted">{list.description}</p>}
       <div className="mt-5 flex items-center gap-3">
         {viewer ? (
-          <ToggleButton variant="link" on={hasLikedList(viewer.id, id)} count={list.likes} action={toggleListLike.bind(null, id)} onLabel="♥ Geliked" offLabel="♡ Liste liken" />
+          <ToggleButton variant="link" on={await hasLikedList(viewer.id, id)} count={list.likes} action={toggleListLike.bind(null, id)} onLabel="♥ Geliked" offLabel="♡ Liste liken" />
         ) : (
           <span className="text-sm text-muted">♥ {list.likes}</span>
         )}
