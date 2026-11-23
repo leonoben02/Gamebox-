@@ -320,6 +320,11 @@ export async function quickSearch(q: string) {
     console.error(e);
   }
   return db
-    .prepare("SELECT id, slug, title, year, cover_url FROM games WHERE title LIKE ? ORDER BY (title LIKE ?) DESC, year DESC LIMIT 8")
-    .all(`%${q}%`, `${q}%`) as { id: number; slug: string; title: string; year: number | null; cover_url: string | null }[];
+    .prepare(
+      `SELECT id, slug, title, year, cover_url FROM games g WHERE title LIKE @like
+       ORDER BY (title = @q COLLATE NOCASE) DESC, (title LIKE @prefix) DESC,
+         (SELECT COUNT(*) FROM user_games ug WHERE ug.game_id = g.id) DESC, (source = 'seed') DESC, LENGTH(title)
+       LIMIT 8`,
+    )
+    .all({ like: `%${q}%`, prefix: `${q}%`, q }) as { id: number; slug: string; title: string; year: number | null; cover_url: string | null }[];
 }

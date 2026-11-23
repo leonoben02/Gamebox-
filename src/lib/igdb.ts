@@ -32,6 +32,7 @@ type IgdbGame = {
   slug: string;
   summary?: string;
   first_release_date?: number;
+  total_rating_count?: number;
   cover?: { image_id: string };
   genres?: { name: string }[];
   themes?: { name: string }[];
@@ -54,13 +55,13 @@ async function query(body: string): Promise<IgdbGame[]> {
 }
 
 const FIELDS =
-  "fields name,slug,summary,first_release_date,cover.image_id,genres.name,themes.name,platforms.name,platforms.abbreviation,involved_companies.developer,involved_companies.company.name;";
+  "fields name,slug,summary,first_release_date,total_rating_count,cover.image_id,genres.name,themes.name,platforms.name,platforms.abbreviation,involved_companies.developer,involved_companies.company.name;";
 
 /** Upserts IGDB results into the local catalogue so they can be logged, listed and reviewed. */
 function upsert(games: IgdbGame[]): number[] {
   const stmt = db.prepare(
-    `INSERT INTO games (slug, title, year, developer, genres, platforms, summary, cover_url, igdb_id)
-     VALUES (@slug, @title, @year, @developer, @genres, @platforms, @summary, @cover_url, @igdb_id)
+    `INSERT INTO games (slug, title, year, developer, genres, platforms, summary, cover_url, igdb_id, source)
+     VALUES (@slug, @title, @year, @developer, @genres, @platforms, @summary, @cover_url, @igdb_id, 'igdb')
      ON CONFLICT(igdb_id) DO UPDATE SET cover_url = excluded.cover_url, summary = excluded.summary
      RETURNING id`,
   );
@@ -78,8 +79,10 @@ function upsert(games: IgdbGame[]): number[] {
         ids.push((attach.get(g.id, cover_url, existing.id) as { id: number }).id);
         continue;
       }
+      let unique = existing ? `${slug}-${year ?? g.id}` : slug;
+      if (bySlug.get(unique)) unique = `${slug}-${g.id}`;
       const row = stmt.get({
-        slug: existing ? `${slug}-${year ?? g.id}` : slug,
+        slug: unique,
         title: g.name,
         year,
         developer: g.involved_companies?.find((c) => c.developer)?.company.name ?? "",
@@ -98,21 +101,42 @@ function upsert(games: IgdbGame[]): number[] {
 export async function searchIgdb(q: string): Promise<number[]> {
   if (!igdbEnabled || !q.trim()) return [];
   const safe = q.replace(/"/g, "");
-  const games = await query(`search "${safe}"; ${FIELDS} where version_parent = null; limit 20;`);
-  return upsert(games);
+  // Main games, remakes, remasters and expanded games only (no mods, DLC or fan projects), best known first.
+  const games = await query(`search "${safe}"; ${FIELDS} where version_parent = null & game_type = (0,8,9,10,11) & cover != null; limit 40;`);
+  games.sort((a, b) => (b.total_rating_count ?? 0) - (a.total_rating_count ?? 0));
+  return upsert(games.slice(0, 20));
 }
 
 /** Seeded games start without cover art; link them to IGDB the first time they are viewed. */
 export async function enrichGame(id: number, title: string): Promise<void> {
   if (!igdbEnabled) return;
   try {
-    const safe = title.replace(/"/g, "");
-    const games = await query(`search "${safe}"; ${FIELDS} where version_parent = null; limit 1;`);
+    // Exact (case-insensitive) title match, also trying roman numerals ("Baldur's Gate 3" -> "Baldur's Gate III").
+    const roman: Record<string, string> = { "2": "II", "3": "III", "4": "IV", "5": "V" };
+    const names = [title, title.replace(/\b([2-5])\b/g, (d) => roman[d])].map((n) => `name ~ "${n.replace(/"/g, "")}"`);
+    const games = await query(`${FIELDS} where (${[...new Set(names)].join(" | ")}) & version_parent = null & cover != null; sort total_rating_count desc; limit 1;`);
     const g = games[0];
-    if (!g || slugify(g.name) !== slugify(title) || !g.cover) return;
+    if (!g?.cover) return;
     const cover = `https://images.igdb.com/igdb/image/upload/t_cover_big/${g.cover.image_id}.jpg`;
     db.prepare("UPDATE games SET igdb_id = ?, cover_url = ? WHERE id = ? AND igdb_id IS NULL").run(g.id, cover, id);
   } catch (e) {
     console.error("IGDB enrich failed", e);
   }
+}
+
+declare global {
+  var __gameboxCoverSync: boolean | undefined;
+}
+
+/** Once per server process: fetch covers for catalogue games that don't have one yet (IGDB allows ~4 req/s). */
+export function syncMissingCovers() {
+  if (!igdbEnabled || globalThis.__gameboxCoverSync) return;
+  globalThis.__gameboxCoverSync = true;
+  const missing = db.prepare("SELECT id, title FROM games WHERE cover_url IS NULL AND igdb_id IS NULL").all() as { id: number; title: string }[];
+  void (async () => {
+    for (const g of missing) {
+      await enrichGame(g.id, g.title);
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  })();
 }

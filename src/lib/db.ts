@@ -131,6 +131,9 @@ function open(): Database.Database {
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
   db.pragma("busy_timeout = 5000");
+  // migration: games imported by search stay out of "browse" until someone interacts with them
+  const cols = db.prepare("PRAGMA table_info(games)").all() as { name: string }[];
+  if (!cols.some((c) => c.name === "source")) db.exec("ALTER TABLE games ADD COLUMN source TEXT NOT NULL DEFAULT 'seed'");
   // Seed once, inside a write transaction so parallel build workers don't seed twice.
   db.transaction(() => {
     const { n } = db.prepare("SELECT COUNT(*) AS n FROM games").get() as { n: number };

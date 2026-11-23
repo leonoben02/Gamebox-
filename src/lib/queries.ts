@@ -62,8 +62,13 @@ export function getGamesByIds(ids: number[]): Game[] {
 
 export function searchLocalGames(q: string, limit = 40): Game[] {
   return db
-    .prepare(`SELECT ${GAME_COLS} FROM games g WHERE title LIKE ? ORDER BY (title LIKE ?) DESC, year DESC LIMIT ?`)
-    .all(`%${q}%`, `${q}%`, limit) as Game[];
+    .prepare(
+      `SELECT ${GAME_COLS} FROM games g WHERE title LIKE @like
+       ORDER BY (title = @q COLLATE NOCASE) DESC, (title LIKE @prefix) DESC,
+         (SELECT COUNT(*) FROM user_games ug WHERE ug.game_id = g.id) DESC, (source = 'seed') DESC, LENGTH(title)
+       LIMIT @limit`,
+    )
+    .all({ like: `%${q}%`, prefix: `${q}%`, q, limit }) as Game[];
 }
 
 export type BrowseSort = "popular" | "rating" | "newest" | "oldest" | "title";
@@ -76,7 +81,11 @@ export function browseGames(opts: { sort?: BrowseSort; genre?: string; limit?: n
     oldest: "g.year ASC, g.title",
     title: "g.title COLLATE NOCASE",
   }[opts.sort ?? "popular"];
-  const where = opts.genre ? "WHERE (',' || g.genres || ',') LIKE ?" : "";
+  const conds = [
+    "(g.source = 'seed' OR EXISTS (SELECT 1 FROM user_games ug WHERE ug.game_id = g.id) OR EXISTS (SELECT 1 FROM list_items li WHERE li.game_id = g.id))",
+  ];
+  if (opts.genre) conds.push("(',' || g.genres || ',') LIKE ?");
+  const where = `WHERE ${conds.join(" AND ")}`;
   const params: unknown[] = opts.genre ? [`%,${opts.genre},%`] : [];
   return db
     .prepare(
@@ -89,7 +98,9 @@ export function browseGames(opts: { sort?: BrowseSort; genre?: string; limit?: n
 }
 
 export function allGenres(): string[] {
-  const rows = db.prepare("SELECT genres FROM games").all() as { genres: string }[];
+  const rows = db
+    .prepare("SELECT genres FROM games g WHERE g.source = 'seed' OR EXISTS (SELECT 1 FROM user_games ug WHERE ug.game_id = g.id)")
+    .all() as { genres: string }[];
   const counts = new Map<string, number>();
   for (const r of rows) for (const g of r.genres.split(",").filter(Boolean)) counts.set(g, (counts.get(g) ?? 0) + 1);
   return [...counts.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).map(([g]) => g);
